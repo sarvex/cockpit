@@ -35,7 +35,7 @@ class TestKeys(testlib.MachineCase):
         m.execute("echo user:foobar | chpasswd")
 
         def login(user):
-            self.login_and_go("/users#/" + user, user=user, superuser=False)
+            self.login_and_go(f"/users#/{user}", user=user, superuser=False)
             b.wait_text("#account-user-name", user)
 
         def add_key(key, fp_sh256, comment):

@@ -48,9 +48,8 @@ class TestApps(packagelib.PackageCase):
         self.appstream_collection.add(name)
 
     def createAppStreamRepoPackage(self):
-        body = ""
-        for p in self.appstream_collection:
-            body += f"""
+        body = "".join(
+            f"""
   <component type="addon">
   <extends>org.cockpit_project.cockpit</extends>
     <id>org.cockpit-project.{p}</id>
@@ -65,6 +64,8 @@ class TestApps(packagelib.PackageCase):
     <pkgname>{p}</pkgname>
   </component>
 """
+            for p in self.appstream_collection
+        )
         self.machine.execute("mkdir -p /usr/share/app-info/xmls")
         self.createPackage("appstream-data-test", "1.0", "1", content={
             "/usr/share/app-info/xmls/test.xml": f"""

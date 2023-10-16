@@ -228,11 +228,10 @@ class Package:
 
         for file in self.path.rglob('*'):
             name = str(file.relative_to(self.path))
-            if name in ['.', '..', 'manifest.json']:
+            if name in {'.', '..', 'manifest.json'}:
                 continue
 
-            po_match = Package.PO_JS_RE.fullmatch(name)
-            if po_match:
+            if po_match := Package.PO_JS_RE.fullmatch(name):
                 basename = po_match.group(1)
                 locale = po_match.group(2)
                 # Accept-Language is case-insensitive and uses '-' to separate variants
@@ -259,8 +258,7 @@ class Package:
         }
 
         for item in self.manifest.csp.split(';'):
-            item = item.strip()
-            if item:
+            if item := item.strip():
                 key, _, value = item.strip().partition(' ')
                 policy[key] = value
 
@@ -305,11 +303,10 @@ class Package:
         assert self.files is not None
         assert self.translations is not None
 
-        if path in self.translations:
-            locales = parse_accept_language(headers)
-            return self.load_translation(path, locales)
-        else:
+        if path not in self.translations:
             return self.load_file(self.files[path])
+        locales = parse_accept_language(headers)
+        return self.load_translation(path, locales)
 
 
 class PackagesLoader:
@@ -397,10 +394,7 @@ class PackagesLoader:
         check_fn = self.CONDITIONS[condition]
 
         # All known predicates currently only work on strings
-        if not isinstance(value, str):
-            return False
-
-        return check_fn(value)
+        return False if not isinstance(value, str) else check_fn(value)
 
     def check_conditions(self, manifest: Manifest) -> bool:
         for condition in manifest.conditions:
@@ -468,9 +462,9 @@ class Packages(bus.Object, interface='cockpit.Packages'):
         logger.debug('Packages loaded: %s', list(self.packages))
 
     def show(self):
+        menuitems = ''
         for name in sorted(self.packages):
             package = self.packages[name]
-            menuitems = ''
             print(f'{name:20} {menuitems:40} {package.path}')
 
     def get_bridge_configs(self) -> Sequence[BridgeConfig]:

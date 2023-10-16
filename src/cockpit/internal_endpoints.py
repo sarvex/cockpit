@@ -46,7 +46,7 @@ class cockpit_LoginMessages(bus.Object):
             with open(int(fdstr), 'r') as login_messages:
                 login_messages.seek(0)
                 self.messages = login_messages.read()
-        except (ValueError, OSError, UnicodeDecodeError) as exc:
+        except (ValueError, OSError) as exc:
             # ValueError - the envvar wasn't an int
             # OSError - the fd wasn't open, or other read failure
             # UnicodeDecodeError - didn't contain utf-8

@@ -111,10 +111,10 @@ class TestStorageNfs(storagelib.StorageCase):
         b.click('#detail-header button:contains("Edit")')
 
         def wait_checked(field):
-            b.wait_visible(self.dialog_field(field) + ":checked")
+            b.wait_visible(f"{self.dialog_field(field)}:checked")
 
         def wait_not_checked(field):
-            b.wait_visible(self.dialog_field(field) + ":not(:checked)")
+            b.wait_visible(f"{self.dialog_field(field)}:not(:checked)")
 
         self.dialog_wait_open()
         wait_checked("mount_options.auto")

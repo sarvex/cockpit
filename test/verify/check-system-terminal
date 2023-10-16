@@ -159,7 +159,7 @@ PROMPT_COMMAND='printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME%%.*}" "${PWD/
             b.click('.contextMenu li:nth-child(2) button')
 
             # Wait for text to show up
-            wait_line(echo_result_line + 1, prompt + "XYZ")
+            wait_line(echo_result_line + 1, f"{prompt}XYZ")
             b.key_press('\r')
             b.wait_in_text(line_sel(echo_result_line + 2), 'XYZ')
 
@@ -185,7 +185,7 @@ PROMPT_COMMAND='printf "\033]0;%s@%s:%s\007" "${USER}" "${HOSTNAME%%.*}" "${PWD/
         b.key_press(chr(45), 8, use_ord=True)  # Shift + Insert
 
         # Wait for text to show up
-        wait_line(echo_result_line + 1, prompt + "foo")
+        wait_line(echo_result_line + 1, f"{prompt}foo")
 
         # check that we get a sensible $PATH; this varies across OSes, so don't be too strict about it
         b.key_press('\rclear\recho $PATH > /tmp/path\r')

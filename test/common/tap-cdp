@@ -76,23 +76,21 @@ os.close(addr_w)
 address = os.read(addr_r, 1000).decode()
 os.close(addr_r)
 
-cdp.invoke("Page.navigate", url=address + '/' + opts.test)
+cdp.invoke("Page.navigate", url=f'{address}/{opts.test}')
 
 success = True
 ignore_resource_errors = False
 
 for t, message in cdp.read_log():
 
-    # fail on browser level errors
     if t == 'cdp':
-        if message['level'] == "error":
-            if ignore_resource_errors and "Failed to load resource" in message["text"]:
-                continue
-            success = False
-            break
-        else:
+        if message['level'] != "error":
             continue
 
+        if ignore_resource_errors and "Failed to load resource" in message["text"]:
+            continue
+        success = False
+        break
     if message == 'cockpittest-tap-done':
         break
     elif message == 'cockpittest-tap-error':

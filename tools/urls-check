@@ -80,8 +80,7 @@ def main():
             success = success or "Task hasn't produced any output"
             since = time.time() - (DAYS * 4 * 86400)
             issues = task.api.issues(state="closed", since=since)
-            issues = [i for i in issues if i["title"] == TASK_NAME]
-            if issues:
+            if issues := [i for i in issues if i["title"] == TASK_NAME]:
                 task.comment(issues[0], success)
             else:
                 data = {

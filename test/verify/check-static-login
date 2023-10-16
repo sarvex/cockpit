@@ -172,7 +172,11 @@ account    required     pam_succeed_if.so user ingroup %s""" % m.get_admin_group
             b.wait_not_visible("#option-group")
 
             # test login with tcsh
-            if not m.image.startswith("rhel") and not m.image.startswith("centos") and not m.image == "arch":  # no tcsh in RHEL and in Arch Linux (TODO: available in [community])
+            if (
+                not m.image.startswith("rhel")
+                and not m.image.startswith("centos")
+                and m.image != "arch"
+            ):  # no tcsh in RHEL and in Arch Linux (TODO: available in [community])
                 try:
                     m.execute("sed -r -i.bak '/^admin:/ s_:[^:]+$_:/bin/tcsh_' /etc/passwd")
                     b.login_and_go()
@@ -417,7 +421,7 @@ account    required     pam_succeed_if.so user ingroup %s""" % m.get_admin_group
                                     "ATTENTION! Your session is being recorded!")
 
     def curl_auth(self, url, userpass):
-        header = "Authorization: Basic " + base64.b64encode(userpass.encode()).decode()
+        header = f"Authorization: Basic {base64.b64encode(userpass.encode()).decode()}"
         return subprocess.check_output(['/usr/bin/curl', '-s', '-k', '-D', '-', '--header', header,
                                         f'http://{self.machine.web_address}:{self.machine.web_port}{url}'],
                                        universal_newlines=True)
@@ -623,7 +627,7 @@ account    required     pam_succeed_if.so user ingroup %s""" % m.get_admin_group
         module = 'faillock'
 
         def logfile(user):
-            return '/var/run/faillock/' + user
+            return f'/var/run/faillock/{user}'
 
         def expect_fail_count(expected, user="admin", must_exist=True):
             if must_exist:
@@ -715,7 +719,7 @@ account    required     pam_succeed_if.so user ingroup %s""" % m.get_admin_group
         expect_failed_login("admin", "foobar", n)
 
         # but we can reset the lockout
-        m.execute(module + " --reset --user admin")
+        m.execute(f"{module} --reset --user admin")
         expect_fail_count(0)
 
         # and login again
@@ -767,9 +771,9 @@ account    required     pam_succeed_if.so user ingroup %s""" % m.get_admin_group
         m.execute("useradd alice; echo alice:foobar123 | chpasswd")
         m.upload(["alice.pem", "alice.key", "alice-expired.pem", "bob.pem", "bob.key"], self.vm_tmpdir,
                  relative_dir="src/tls/ca/")
-        alice_cert = self.vm_tmpdir + "/alice.pem"
-        alice_cert_expired = self.vm_tmpdir + "/alice-expired.pem"
-        alice_key = self.vm_tmpdir + "/alice.key"
+        alice_cert = f"{self.vm_tmpdir}/alice.pem"
+        alice_cert_expired = f"{self.vm_tmpdir}/alice-expired.pem"
+        alice_key = f"{self.vm_tmpdir}/alice.key"
         alice_cert_key = ['--cert', alice_cert, '--key', alice_key]
 
         # set up local (NIS) sssd provider and certificate mapping
@@ -790,9 +794,12 @@ matchrule = <SUBJECT>^DC=LAN,DC=COCKPIT,CN=alice$
         user_obj = m.execute('busctl call org.freedesktop.sssd.infopipe /org/freedesktop/sssd/infopipe/Users '
                              'org.freedesktop.sssd.infopipe.Users FindByCertificate s -- '
                              """"$(cat %s)" | sed 's/^o "//; s/"$//' """ % alice_cert)
-        self.assertEqual(m.execute('busctl get-property org.freedesktop.sssd.infopipe ' + user_obj.strip() +
-                                   ' org.freedesktop.sssd.infopipe.Users.User name').strip(),
-                         's "alice"')
+        self.assertEqual(
+            m.execute(
+                f'busctl get-property org.freedesktop.sssd.infopipe {user_obj.strip()} org.freedesktop.sssd.infopipe.Users.User name'
+            ).strip(),
+            's "alice"',
+        )
 
         # sssd 2.6.1 introduces FindByValidCertificate() method which validates the given certificate
         # against the configured CA. Without this, certmap rules are completely unsafe!
@@ -837,7 +844,7 @@ matchrule = <SUBJECT>^DC=LAN,DC=COCKPIT,CN=alice$
                 sessions = m.execute('loginctl show-user --property=Sessions --value alice').strip().split()
                 self.assertGreaterEqual(len(sessions), 1)
                 for session in sessions:
-                    out = m.execute('loginctl session-status ' + session)
+                    out = m.execute(f'loginctl session-status {session}')
                     if "State: active" in out:  # skip closing sessions
                         self.assertIn(session_leader, out)
                         self.assertIn('cockpit-bridge', out)
@@ -847,7 +854,7 @@ matchrule = <SUBJECT>^DC=LAN,DC=COCKPIT,CN=alice$
                     self.fail("no active session for active user")
 
                 # sessions time out after 10s, but let's not wait for that
-                m.execute('loginctl terminate-session ' + sessions[0])
+                m.execute(f'loginctl terminate-session {sessions[0]}')
                 # wait until the session is gone
                 m.execute("while loginctl show-user alice | grep -q 'State=active'; do sleep 1; done")
 
@@ -874,9 +881,19 @@ matchrule = <SUBJECT>^DC=LAN,DC=COCKPIT,CN=alice$
 
         # another certificate gets rejected
         self.allow_journal_messages("cockpit-session: No matching user for certificate")
-        do_test(["--cert", self.vm_tmpdir + "/bob.pem", "--key", self.vm_tmpdir + "/bob.key"],
-                ["HTTP/1.1 401 Authentication failed", '<h1>Authentication failed</h1>'],
-                not_expected=["crsf-token"])
+        do_test(
+            [
+                "--cert",
+                f"{self.vm_tmpdir}/bob.pem",
+                "--key",
+                f"{self.vm_tmpdir}/bob.key",
+            ],
+            [
+                "HTTP/1.1 401 Authentication failed",
+                '<h1>Authentication failed</h1>',
+            ],
+            not_expected=["crsf-token"],
+        )
 
         # check expired certificate
         m.start_cockpit(tls=True)

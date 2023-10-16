@@ -302,9 +302,6 @@ class TestSystemInfo(packagelib.PackageCase):
                 self.enableRepo()
                 m.execute("apt-get update; apt-get install -y systemd-timesyncd")
                 m.execute("systemctl restart systemd-timedated; timedatectl set-ntp off; timedatectl set-ntp on")
-            else:
-                # timesyncd is default
-                pass
         else:
             # chronyd is default, give priority to timesyncd
             self.write_file("/etc/systemd/ntp-units.d/10-test.list", "systemd-timesyncd.service")
@@ -372,10 +369,6 @@ class TestSystemInfo(packagelib.PackageCase):
             self.enableRepo()
             m.execute("apt-get update; apt-get install -y chrony")
             m.execute("systemctl restart systemd-timedated; timedatectl set-ntp off; timedatectl set-ntp on")
-        else:
-            # chronyd is default
-            pass
-
         self.login_and_go("/system")
 
         # Wait until everything is ready to go...
@@ -519,17 +512,32 @@ class TestSystemInfo(packagelib.PackageCase):
         # PCI
         b.wait_in_text(pci_selector + heading_selector, "PCI")
 
-        b.wait_in_text(pci_selector + ' tr:first-of-type td[data-label=Slot]', "0000:00:00.0")
+        b.wait_in_text(
+            f'{pci_selector} tr:first-of-type td[data-label=Slot]', "0000:00:00.0"
+        )
 
         # sorted by device class by default; this makes some assumptions about QEMU devices
-        b.wait_in_text(pci_selector + ' tbody tr:first-of-type td[data-label=Class]', "Bridge")
-        b.wait_in_text(pci_selector + ' tbody tr:last-of-type td[data-label=Class]', "Unclassified")
+        b.wait_in_text(
+            f'{pci_selector} tbody tr:first-of-type td[data-label=Class]', "Bridge"
+        )
+        b.wait_in_text(
+            f'{pci_selector} tbody tr:last-of-type td[data-label=Class]',
+            "Unclassified",
+        )
 
         # sort by model
-        b.click(pci_selector + ' thead th:nth-child(2) button')
-        b.wait_in_text(pci_selector + ' tbody tr:first-of-type td[data-label=Model]', "440")
-        b.wait_in_text(pci_selector + ' tbody tr:last-of-type td[data-label=Model]', "Virtio SCSI")
-        b.wait_not_in_text(pci_selector + ' tbody tr:last-of-type td[data-label=Model]', "Unclassified")
+        b.click(f'{pci_selector} thead th:nth-child(2) button')
+        b.wait_in_text(
+            f'{pci_selector} tbody tr:first-of-type td[data-label=Model]', "440"
+        )
+        b.wait_in_text(
+            f'{pci_selector} tbody tr:last-of-type td[data-label=Model]',
+            "Virtio SCSI",
+        )
+        b.wait_not_in_text(
+            f'{pci_selector} tbody tr:last-of-type td[data-label=Model]',
+            "Unclassified",
+        )
 
         # go back to system page
         b.click('.pf-v5-c-breadcrumb li:first-of-type')
@@ -557,7 +565,9 @@ class TestSystemInfo(packagelib.PackageCase):
 
         # PCI should be shown
         b.wait_in_text(pci_selector + heading_selector, "PCI")
-        b.wait_in_text(pci_selector + ' tr:first-of-type td[data-label=Slot]', "0000:00:00.0")
+        b.wait_in_text(
+            f'{pci_selector} tr:first-of-type td[data-label=Slot]', "0000:00:00.0"
+        )
 
         # Check also variants when only some fields are present
         m.write("/sys/class/dmi/id/chassis_type", "10")
@@ -671,7 +681,7 @@ machine         : 8561
         b.enter_page('/system/hwinfo')
 
         # Memory details should be shown from our mocked DMI information from systemd's test files.
-        b.wait_in_text('#hwinfo #memory-listing' + heading_selector, "Memory")
+        b.wait_in_text(f'#hwinfo #memory-listing{heading_selector}', "Memory")
         b.wait_in_text('#hwinfo #memory-listing table', "DIMM")
         b.wait_in_text('#hwinfo #memory-listing table', "RAM")
 
@@ -1036,7 +1046,7 @@ password=foobar
 
         self.login_and_go("/system")
 
-        profile = m.execute(cmd + " --show").strip()
+        profile = m.execute(f"{cmd} --show").strip()
         b.wait_text("#crypto-policy-button", shown_profile_text(profile))
 
         # RHEL 8 has no SHA1 policy, so do not show it.
@@ -1048,7 +1058,7 @@ password=foobar
         new_profile = "LEGACY:AD-SUPPORT"
         change_profile(profile, new_profile)
 
-        profile = m.execute(cmd + " --show").strip()
+        profile = m.execute(f"{cmd} --show").strip()
         self.assertEqual(profile, new_profile)
         b.wait_text("#crypto-policy-button", shown_profile_text(profile))
         new_profile = "FIPS"
@@ -1056,7 +1066,7 @@ password=foobar
 
         # Select a custom policy (non-selectable option)
         profile = "EMPTY"
-        m.execute(cmd + f" --set {profile}")
+        m.execute(f"{cmd} --set {profile}")
         b.enter_page("/system")
         b.wait_text("#crypto-policy-button", shown_profile_text(profile))
         b.click("#crypto-policy-button")
@@ -1073,7 +1083,7 @@ password=foobar
         cmd = "update-crypto-policies"
 
         # Admin sets FIPS crypto policy in terminal, but FIPS mode is disabled
-        m.execute(cmd + " --set FIPS")
+        m.execute(f"{cmd} --set FIPS")
         self.login_and_go("/system")
         b.wait_text("#inconsistent_crypto_policy", "FIPS is not properly enabled")
         b.click(".system-health-crypto-policies button.pf-v5-c-button.pf-m-link")
@@ -1086,14 +1096,14 @@ password=foobar
         b.wait_text("#crypto-policy-button", "FIPS")
         self.assertEqual(m.execute("cat /proc/sys/crypto/fips_enabled").strip(), "1")
 
-        m.execute(cmd + " --set DEFAULT")
+        m.execute(f"{cmd} --set DEFAULT")
         b.wait_text("#inconsistent_crypto_policy", "Cryptographic policy is inconsistent")
-        m.execute(cmd + " --set FIPS:OSPP")
+        m.execute(f"{cmd} --set FIPS:OSPP")
         b.wait_text("#crypto-policy-button", "FIPS:OSPP")
         b.wait_not_present("#inconsistent_crypto_policy")
 
         # Setting via dialog
-        m.execute(cmd + " --set DEFAULT")
+        m.execute(f"{cmd} --set DEFAULT")
         b.wait_text("#inconsistent_crypto_policy", "Cryptographic policy is inconsistent")
         b.click(".system-health-crypto-policies button.pf-v5-c-button.pf-m-link")
         b.wait_in_text(".pf-v5-c-menu__item.pf-m-selected .pf-v5-c-label.pf-m-orange", "inconsistent")

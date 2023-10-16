@@ -3,8 +3,7 @@ import sys
 
 from cockpit._vendor.ferny import interaction_client
 
-pw = os.environ.get('PSEUDO_PASSWORD')
-if pw:
+if pw := os.environ.get('PSEUDO_PASSWORD'):
     reader, writer = os.pipe()
     # '-' is the (ignored) argv[0], and 'can haz pw' is the message in argv[1]
     interaction_client.askpass(2, writer, ['-', 'can haz pw?'], {})

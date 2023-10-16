@@ -66,7 +66,9 @@ class TestRoles(testlib.MachineCase):
         b.wait_visible("#account-set-password:not([disabled])")
         b.wait_not_present("#account-delete")
         b.wait_not_present("#account-logout")
-        b.wait_not_present(admin_role_sel + f" > button:contains(Close {m.get_admin_group()})")
+        b.wait_not_present(
+            f"{admin_role_sel} > button:contains(Close {m.get_admin_group()})"
+        )
 
         # Check permissions for admin account
         b.go("/users")

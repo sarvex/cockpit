@@ -7,7 +7,7 @@ from typing import List, Optional
 
 import pytest
 
-TOPDIR = os.path.realpath(__file__ + '../../../..')
+TOPDIR = os.path.realpath(f'{__file__}../../../..')
 COMMON_PATH = [
     f'{TOPDIR}/bots',
     f'{TOPDIR}/bots/machine',

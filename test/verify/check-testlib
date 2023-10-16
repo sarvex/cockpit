@@ -78,10 +78,20 @@ class TestRunTest(testlib.MachineCase):
             del env["TEST_JOBS"]
         except KeyError:
             pass
-        out = subprocess.check_output([run_tests, "--test-dir", EXAMPLE_DIR, "-vt",
-                                       "--machine", self.machine.ssh_address + ":" + self.machine.ssh_port,
-                                       "--browser", self.machine.web_address + ":" + self.machine.web_port,
-                                       "TestNondestructiveExample"], env=env)
+        out = subprocess.check_output(
+            [
+                run_tests,
+                "--test-dir",
+                EXAMPLE_DIR,
+                "-vt",
+                "--machine",
+                f"{self.machine.ssh_address}:{self.machine.ssh_port}",
+                "--browser",
+                f"{self.machine.web_address}:{self.machine.web_port}",
+                "TestNondestructiveExample",
+            ],
+            env=env,
+        )
         self.assertRegex(out, b"\nok .* TestNondestructiveExample.testOne")
         self.assertRegex(out, b"\nok .* TestNondestructiveExample.testTwo")
         self.assertIn(b"TESTS PASSED", out)

@@ -207,8 +207,8 @@ class TestStorageLegacyVDO(storagelib.StorageCase):
         b.wait_in_text(detail(3), "used of 5.37 GB")
         b.wait_in_text(detail(4), "used of 5.37 GB")
         b.wait_text(detail(5), "268 MB")
-        b.wait_visible(detail(6) + " input:checked")
-        b.wait_visible(detail(7) + " input:checked")
+        b.wait_visible(f"{detail(6)} input:checked")
+        b.wait_visible(f"{detail(7)} input:checked")
 
         # Make a filesystem on it
 
@@ -234,7 +234,7 @@ class TestStorageLegacyVDO(storagelib.StorageCase):
 
         # Grow logical
 
-        b.click(detail(4) + " button:contains(Grow)")
+        b.click(f"{detail(4)} button:contains(Grow)")
         self.dialog({"lsize": 10000})
         b.wait_in_text(detail(4), "used of 10.0 GB")
         self.content_row_wait_in_col(1, 4, "/ 10 GB")

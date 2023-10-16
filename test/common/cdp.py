@@ -76,8 +76,7 @@ class Chromium(Browser):
 
         # If we want to have interactive chromium, we don't want to use headless_shell
         if not show_browser:
-            g = glob.glob("/usr/lib*/chromium-browser/headless_shell")
-            if g:
+            if g := glob.glob("/usr/lib*/chromium-browser/headless_shell"):
                 return g[0]
 
         p = self.find_exe()
@@ -85,10 +84,7 @@ class Chromium(Browser):
             return p
 
         p = os.path.join(os.path.dirname(TEST_DIR), "node_modules/chromium/lib/chromium/chrome-linux/chrome")
-        if os.access(p, os.X_OK):
-            return p
-
-        return None
+        return p if os.access(p, os.X_OK) else None
 
     def cmd(self, cdp_port, env, show_browser, browser_home, download_dir):
         exe = self.path(show_browser)
@@ -188,25 +184,25 @@ class CDP:
         except KeyError:
             pass
 
-        cmd = fn + "(" + json.dumps(kwargs) + ")"
+        cmd = f"{fn}({json.dumps(kwargs)})"
 
         # frame support for Runtime.evaluate(): map frame name to
         # executionContextId and insert into argument object; this must not be quoted
         # see "Frame tracking" in cdp-driver.js for how this works
         if fn == 'Runtime.evaluate':
-            cmd = "%s, contextId: getFrameExecId(%s)%s" % (cmd[:-2], jsquote(self.cur_frame), cmd[-2:])
+            cmd = f"{cmd[:-2]}, contextId: getFrameExecId({jsquote(self.cur_frame)}){cmd[-2:]}"
 
         if trace:
             print("-> " + kwargs.get('trace', cmd))
 
         # avoid having to write the "client." prefix everywhere
-        cmd = "client." + cmd
+        cmd = f"client.{cmd}"
         res = self.command(cmd)
         if trace:
             if res and "result" in res:
                 print("<- " + repr(res["result"]))
             else:
-                print("<- " + repr(res))
+                print(f"<- {repr(res)}")
         return res
 
     def command(self, cmd):
@@ -227,7 +223,7 @@ class CDP:
 
         if "error" in res:
             if self.trace:
-                print("<- raise %s" % str(res["error"]))
+                print(f'<- raise {str(res["error"])}')
             raise RuntimeError(res["error"])
         return res["result"]
 
@@ -355,7 +351,7 @@ class CDP:
     def set_frame(self, frame):
         self.cur_frame = frame
         if self.trace:
-            print("-> switch to frame %s" % frame)
+            print(f"-> switch to frame {frame}")
 
     def get_js_log(self):
         """Return the current javascript console log"""
@@ -376,6 +372,4 @@ class CDP:
             return
 
         while True:
-            messages = self.command("waitLog()")
-            for m in messages:
-                yield m
+            yield from self.command("waitLog()")

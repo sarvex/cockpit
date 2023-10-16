@@ -89,11 +89,11 @@ def parse_sourcemap(f, line_starts, dir_name):
 
     our_map = []
 
-    our_sources = set()
-    for s in sources:
-        if "node_modules" not in s and (s.endswith(('.js', '.jsx'))):
-            our_sources.add(s)
-
+    our_sources = {
+        s
+        for s in sources
+        if "node_modules" not in s and (s.endswith(('.js', '.jsx')))
+    }
     dst_col, src_id, src_line = 0, 0, 0
     for dst_line, line in enumerate(lines):
         segments = line.split(',')
@@ -121,17 +121,12 @@ class DistFile:
     def __init__(self, path):
         line_starts = [0]
         with open(path, newline='') as f:
-            for line in f.readlines():
-                line_starts.append(line_starts[-1] + len(line))
-        with open(path + ".map") as f:
+            line_starts.extend(line_starts[-1] + len(line) for line in f)
+        with open(f"{path}.map") as f:
             self.smap = parse_sourcemap(f, line_starts, os.path.relpath(os.path.dirname(path), BASE_DIR))
 
     def find_sources_slow(self, start, end):
-        res = []
-        for m in self.smap:
-            if m[0] >= start and m[0] < end:
-                res.append(m)
-        return res
+        return [m for m in self.smap if m[0] >= start and m[0] < end]
 
     def find_sources(self, start, end):
         res = []
@@ -167,14 +162,13 @@ def get_distfile(url, dist_map):
     if file == "manifests.js":
         return None
     if base in dist_map:
-        path = dist_map[base] + "/" + file
+        path = f"{dist_map[base]}/{file}"
     else:
-        path = f"{BASE_DIR}/dist/" + base + "/" + file
-    if os.path.exists(path) and os.path.exists(path + ".map"):
+        path = f"{BASE_DIR}/dist/{base}/{file}"
+    if os.path.exists(path) and os.path.exists(f"{path}.map"):
         return DistFile(path)
-    else:
-        sys.stderr.write(f"SKIP {url} -> {path}\n")
-        return None
+    sys.stderr.write(f"SKIP {url} -> {path}\n")
+    return None
 
 
 def grow_array(arr, size, val):
@@ -183,10 +177,7 @@ def grow_array(arr, size, val):
 
 
 def record_covered(file_hits, src, line, hits):
-    if src in file_hits:
-        line_hits = file_hits[src]
-    else:
-        line_hits = []
+    line_hits = file_hits[src] if src in file_hits else []
     grow_array(line_hits, line + 1, None)
     line_hits[line] = hits
     file_hits[src] = line_hits
@@ -237,7 +228,7 @@ class DiffMap:
         plus_name = None
         diff_line = 0
         with open(diff) as f:
-            for line in f.readlines():
+            for line in f:
                 diff_line += 1
                 if line.startswith("+++ /dev/null"):
                     # removed file, only `^-` following after that until the next hunk
@@ -276,8 +267,7 @@ def print_diff_coverage(path, file_hits, out):
         line_hits = file_hits[f]
         for i in range(len(line_hits)):
             if line_hits[i] is not None:
-                diff_line = dm.find_line(f, i + 1)
-                if diff_line:
+                if diff_line := dm.find_line(f, i + 1):
                     lines_found += 1
                     out.write(f"DA:{diff_line},{line_hits[i]}\n")
                     if line_hits[i] > 0:
@@ -296,8 +286,7 @@ def write_lcov(covdata, outlabel):
 
     def covranges(functions):
         for f in functions:
-            for r in f['ranges']:
-                yield r
+            yield from f['ranges']
 
     # Coverage data is reported as a "count" value for a range of
     # text.  These ranges overlap when functions are nested.  For
@@ -375,14 +364,14 @@ def write_lcov(covdata, outlabel):
                 record_range(hits, r, distfile)
             merge_hits(file_hits, hits)
 
-    if len(file_hits) > 0:
+    if file_hits:
         os.makedirs(f"{BASE_DIR}/lcov", exist_ok=True)
         filename = f"{BASE_DIR}/lcov/{outlabel}.info.gz"
         with gzip.open(filename, "wt") as out:
             for f in file_hits:
                 print_file_coverage(f, file_hits[f], out)
             print_diff_coverage("lcov/github-pr.diff", file_hits, out)
-        print("Wrote coverage data to " + filename)
+        print(f"Wrote coverage data to {filename}")
 
 
 def get_review_comments(diff_info_file):
@@ -398,9 +387,7 @@ def get_review_comments(diff_info_file):
         # Don't complain about lines that contain only punctuation, or
         # nothing but "else".  We don't seem to get reliable
         # information for them.
-        if not re.search('[a-zA-Z0-9]', text.replace("else", "")):
-            return False
-        return True
+        return bool(re.search('[a-zA-Z0-9]', text.replace("else", "")))
 
     def flush_cur_comment():
         nonlocal comments
@@ -421,7 +408,7 @@ def get_review_comments(diff_info_file):
     dm = DiffMap("lcov/github-pr.diff")
 
     with open(diff_info_file) as f:
-        for line in f.readlines():
+        for line in f:
             if line.startswith("DA:"):
                 parts = line[3:].split(",")
                 if int(parts[1]) == 0:
@@ -466,13 +453,10 @@ def create_coverage_report():
         title = os.path.basename(subprocess.check_output(["git", "remote", "get-url", "origin"])).decode().strip()
     except subprocess.CalledProcessError:
         title = "?"
-    if len(lcov_files) > 0:
+    if lcov_files:
         all_file = f"{BASE_DIR}/lcov/all.info"
         diff_file = f"{BASE_DIR}/lcov/diff.info"
-        excludes = []
-        # Exclude pkg/lib in Cockpit projects such as podman/machines.
-        if title != "cockpit.git":
-            excludes = ["--exclude", "pkg/lib"]
+        excludes = ["--exclude", "pkg/lib"] if title != "cockpit.git" else []
         subprocess.check_call(["lcov", "--quiet", "--output", all_file, *excludes,
                                *itertools.chain(*[["--add", f] for f in lcov_files])])
         subprocess.check_call(["lcov", "--quiet", "--output", diff_file,
@@ -483,8 +467,7 @@ def create_coverage_report():
                                            "--output-dir", f"{output}/Coverage", all_file]).decode()
 
         coverage = summary.split("\n")[-2]
-        match = re.search(r".*lines\.*:\s*([\d\.]*%).*", coverage)
-        if match:
+        if match := re.search(r".*lines\.*:\s*([\d\.]*%).*", coverage):
             print("Overall line coverage:", match.group(1))
 
         comments = get_review_comments(diff_file)

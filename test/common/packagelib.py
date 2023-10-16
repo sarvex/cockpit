@@ -46,7 +46,7 @@ class PackageCase(MachineCase):
             self.primary_arch = "any"
             self.secondary_arch = "x86_64"
         else:
-            raise NotImplementedError("unknown image " + self.machine.image)
+            raise NotImplementedError(f"unknown image {self.machine.image}")
 
         if "debian" in self.image or "ubuntu" in self.image:
             # PackageKit refuses to work when offline, and main interface is not managed by NM on these images
@@ -132,13 +132,18 @@ Server = file://{empty_repo_dir}
         If install is True, install the package. Otherwise, update the package
         index in repo_dir.
         """
-        if provides:
-            provides = f"Provides: {provides}"
-        else:
-            provides = ""
-
+        provides = f"Provides: {provides}" if provides else ""
         if self.backend == "apt":
-            self.createDeb(name, version + '-' + release, depends, postinst, install, content, arch, provides)
+            self.createDeb(
+                name,
+                f'{version}-{release}',
+                depends,
+                postinst,
+                install,
+                content,
+                arch,
+                provides,
+            )
         elif self.backend == "alpm":
             self.createPacmanPkg(name, version, release, depends, postinst, install, content, arch, provides)
         else:
@@ -164,7 +169,7 @@ Server = file://{empty_repo_dir}
             postinstcode = ''
         if content is not None:
             for path, data in content.items():
-                dest = "/tmp/b/" + path
+                dest = f"/tmp/b/{path}"
                 m.execute(f"mkdir -p '{os.path.dirname(dest)}'")
                 if isinstance(data, dict):
                     m.execute(f"cp '{data['path']}' '{dest}'")
@@ -190,7 +195,7 @@ Server = file://{empty_repo_dir}
                   rm -r /tmp/b
               """
         if install:
-            cmd += "dpkg -i " + deb
+            cmd += f"dpkg -i {deb}"
         m.execute(cmd)
         self.addCleanup(m.execute, f"dpkg -P --force-depends --force-remove-reinstreq {name} 2>/dev/null || true")
 
@@ -200,10 +205,7 @@ Server = file://{empty_repo_dir}
         If install is True, install the package. Otherwise, update the package
         index in repo_dir.
         """
-        if post:
-            postcode = '\n%%post\n' + post
-        else:
-            postcode = ''
+        postcode = '\n%%post\n' + post if post else ''
         if requires:
             requires = f"Requires: {requires}\n"
         if arch is None:
@@ -216,7 +218,10 @@ Server = file://{empty_repo_dir}
                 if isinstance(data, dict):
                     installcmds += f"cp {data['path']} \"$RPM_BUILD_ROOT/{path}\""
                 else:
-                    installcmds += f'cat >"$RPM_BUILD_ROOT/{path}" <<\'EOF\'\n' + data + '\nEOF\n'
+                    installcmds += (
+                        f"""cat >"$RPM_BUILD_ROOT/{path}" <<\'EOF\'\n{data}"""
+                        + '\nEOF\n'
+                    )
                 installedfiles += f"{path}\n"
 
         architecture = ""
@@ -283,7 +288,7 @@ rm -rf ~/rpmbuild
                     self.machine.execute(f'cp {data["path"]} /tmp/{file}')
                     installcmds += f'cp {file} $pkgdir{path}\n'
                 else:
-                    installcmds += f'cat >"$pkgdir{path}" <<\'EOF\'\n' + data + '\nEOF\n'
+                    installcmds += f"""cat >"$pkgdir{path}" <<\'EOF\'\n{data}""" + '\nEOF\n'
 
             sources += ")"
 
@@ -340,7 +345,7 @@ post_upgrade() {{
         for ((pkg, ver, rel), info) in self.updateInfo.items():
             changes = info.get("changes", "some changes")
             if info.get("bugs"):
-                changes += f" (Closes: {', '.join([('#' + str(b)) for b in info['bugs']])})"
+                changes += f" (Closes: {', '.join([f'#{str(b)}' for b in info['bugs']])})"
             if info.get("cves"):
                 changes += "\n  * " + ", ".join(info["cves"])
 
@@ -356,10 +361,12 @@ post_upgrade() {{
     def createYumUpdateInfo(self):
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n<updates>\n'
         for ((pkg, ver, rel), info) in self.updateInfo.items():
-            refs = ""
-            for b in info.get("bugs", []):
-                refs += '      <reference href="https://bugs.example.com?bug={0}" id="{0}" title="Bug#{0} Description" type="bugzilla"/>\n'.format(
-                    b)
+            refs = "".join(
+                '      <reference href="https://bugs.example.com?bug={0}" id="{0}" title="Bug#{0} Description" type="bugzilla"/>\n'.format(
+                    b
+                )
+                for b in info.get("bugs", [])
+            )
             for c in info.get("cves", []):
                 refs += '      <reference href="https://cve.mitre.org/cgi-bin/cvename.cgi?name={0}" id="{0}" title="{0}" type="cve"/>\n'.format(
                     c)

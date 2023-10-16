@@ -45,7 +45,7 @@ try:
 except (ValueError, ImportError):
     Handy = None
 
-libexecdir = os.path.realpath(__file__ + '/..')
+libexecdir = os.path.realpath(f'{__file__}/..')
 
 libc6 = ctypes.cdll.LoadLibrary('libc.so.6')
 
@@ -275,10 +275,7 @@ class CockpitClient(Gtk.Application):
             return False
 
         shared = flatpak_info.get('Context', 'Shared', fallback='').lower().split(';')
-        if 'network' in shared:
-            return False
-
-        return True
+        return 'network' not in shared
 
 
 class ExternalCockpitWs:

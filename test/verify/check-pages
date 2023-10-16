@@ -34,16 +34,15 @@ class TestPages(testlib.MachineCase):
 
         b.click("#toggle-docs")
         b.wait_visible("#toggle-docs + ul")
-        expected = "Web Console"
-        expected += "".join(items)
+        expected = "Web Console" + "".join(items)
         expected += "About Web Console"
         # DOCUMENTATION_URL is only in Fedora, RHEL and Arch
         if "fedora" in m.image:
-            expected = "Fedora Linux documentation" + expected
+            expected = f"Fedora Linux documentation{expected}"
         elif m.image.startswith("rhel"):
-            expected = "Red Hat Enterprise Linux documentation" + expected
+            expected = f"Red Hat Enterprise Linux documentation{expected}"
         elif m.image == "arch":
-            expected = "Arch Linux documentation" + expected
+            expected = f"Arch Linux documentation{expected}"
 
         b.wait_collected_text("#toggle-docs + ul", expected)
         b.click("#toggle-docs")
@@ -328,7 +327,7 @@ OnCalendar=daily
             m.execute('echo \'pt_BR.UTF-8 UTF-8\' >> /etc/locale.gen; locale-gen; update-locale')
         elif "ubuntu" in m.image:
             m.execute('locale-gen pt_BR; locale-gen pt_BR.UTF-8; update-locale')
-        elif "arch" == m.image:
+        elif m.image == "arch":
             m.execute('echo \'pt_BR.UTF-8 UTF-8\' >> /etc/locale.gen; locale-gen')
 
         self.login_and_go('/system')
@@ -586,9 +585,11 @@ OnCalendar=daily
 
         # test file completion widget
         b.focus("#demo-file-ac input[type=text]")
-        b.key_press(stuff + "/")
+        b.key_press(f"{stuff}/")
         # need to wait for the widget's "fast typing" inhibition delay to trigger the completion popup
-        b.wait_in_text("#file-autocomplete-widget li:nth-of-type(1) button", stuff + "/")
+        b.wait_in_text(
+            "#file-autocomplete-widget li:nth-of-type(1) button", f"{stuff}/"
+        )
         b.wait_in_text("#file-autocomplete-widget li:nth-of-type(2) button", "dir/")
         b.wait_in_text("#file-autocomplete-widget li:nth-of-type(3) button", "dir1/")
         b.wait_in_text("#file-autocomplete-widget li:nth-of-type(4) button", "file1.txt")
@@ -598,16 +599,22 @@ OnCalendar=daily
         b.click("#demo-file-ac div:first-of-type div:first-of-type button:nth-of-type(1)")
         # test if input matches one entry, but is the prefix of other entry, widget should not descend into directory
         b.focus("#demo-file-ac input[type=text]")
-        b.key_press(stuff + "/dir")
-        b.wait_in_text("#file-autocomplete-widget li:nth-of-type(1) button", stuff + "/dir")
-        b.wait_in_text("#file-autocomplete-widget li:nth-of-type(2) button", stuff + "/dir1")
+        b.key_press(f"{stuff}/dir")
+        b.wait_in_text(
+            "#file-autocomplete-widget li:nth-of-type(1) button", f"{stuff}/dir"
+        )
+        b.wait_in_text(
+            "#file-autocomplete-widget li:nth-of-type(2) button", f"{stuff}/dir1"
+        )
 
         # clear the file completion widget
         b.click("#demo-file-ac div:first-of-type div:first-of-type button:nth-of-type(1)")
         b.wait_not_present("#file-autocomplete-widget li")
         b.focus("#demo-file-ac input[type=text]")
-        b.key_press(stuff + "/")
-        b.wait_in_text("#file-autocomplete-widget li:nth-of-type(1) button", stuff + "/")
+        b.key_press(f"{stuff}/")
+        b.wait_in_text(
+            "#file-autocomplete-widget li:nth-of-type(1) button", f"{stuff}/"
+        )
         b.wait_in_text("#file-autocomplete-widget li:nth-of-type(4) button", "file1.txt")
         b.click("#file-autocomplete-widget li:nth-of-type(4) button")
         b.wait_not_present("#file-autocomplete-widget li")
@@ -666,10 +673,7 @@ OnCalendar=daily
             info = {}
             for line in machine.execute("cat /proc/meminfo").splitlines():
                 (name, value) = line.strip().split(":")
-                if value.endswith("kB"):
-                    info[name] = int(value[:-2]) * 1024
-                else:
-                    info[name] = int(value)
+                info[name] = int(value[:-2]) * 1024 if value.endswith("kB") else int(value)
             return info
 
         # When checking whether the plots show the expected results,

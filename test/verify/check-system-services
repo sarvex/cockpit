@@ -94,15 +94,15 @@ class TestServices(testlib.MachineCase):
         return f'tr[data-goto-unit="{service}"]'
 
     def goto_service(self, service):
-        return self.browser.click(self.svc_sel(service) + ' a')
+        return self.browser.click(f'{self.svc_sel(service)} a')
 
     def wait_service_state(self, service, state):
         state_new = state
-        if 'inactive' in state:
+        if 'inactive' in state_new:
             state_new = 'Not running'
-        elif 'active' in state:
+        elif 'active' in state_new:
             state_new = 'Running'
-        elif 'failed' in state:
+        elif 'failed' in state_new:
             state_new = 'Failed to'
 
         self.browser.wait_in_text(self.svc_sel(service), state_new)
@@ -727,9 +727,7 @@ ExecStart=/bin/awk -f /tmp/mem-hog{params}.awk
         service_type = "user-service" if user else "service"
 
         def append_user(url):
-            if user:
-                return url + ("" if "#/" in url else "#/") + "?owner=user"
-            return url
+            return url + ("" if "#/" in url else "#/") + "?owner=user" if user else url
 
         self.make_test_service("/etc/systemd/user" if user else "/etc/systemd/system")
 

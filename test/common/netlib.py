@@ -172,10 +172,7 @@ class NetworkCase(MachineCase, NetworkHelpers):
 
     def iface_con_id(self, iface):
         con_id = self.machine.execute(f"nmcli -m tabular -t -f GENERAL.CONNECTION device show {iface}").strip()
-        if con_id == "" or con_id == "--":
-            return None
-        else:
-            return con_id
+        return None if con_id in ["", "--"] else con_id
 
     def wait_for_iface_setting(self, setting_title, setting_value):
         b = self.browser
@@ -202,10 +199,13 @@ class NetworkCase(MachineCase, NetworkHelpers):
         self.addCleanup(self.machine.execute, "umount /usr/sbin/dhclient")
 
     def wait_onoff(self, sel, val):
-        self.browser.wait_visible(sel + " input[type=checkbox]" + (":checked" if val else ":not(:checked)"))
+        self.browser.wait_visible(
+            f"{sel} input[type=checkbox]"
+            + (":checked" if val else ":not(:checked)")
+        )
 
     def toggle_onoff(self, sel):
-        self.browser.click(sel + " input[type=checkbox]")
+        self.browser.click(f"{sel} input[type=checkbox]")
 
     def login_and_go(self, *args, **kwargs):
         super().login_and_go(*args, **kwargs)

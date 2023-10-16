@@ -60,7 +60,9 @@ class BridgeBeibootHelper(ferny.InteractionHandler):
 
     async def run_command(self, command: str, args: Tuple, fds: List[int], stderr: str) -> None:
         logger.debug('Got ferny request %s %s %s %s', command, args, fds, stderr)
-        if command == 'beiboot.provide':
+        if command == 'beiboot.exc':
+            raise PeerError('internal-error', message=f'Remote exception: {args[0]}')
+        elif command == 'beiboot.provide':
             try:
                 size, = args
                 assert size == len(self.payload)
@@ -70,7 +72,5 @@ class BridgeBeibootHelper(ferny.InteractionHandler):
             assert self.peer.transport is not None
             logger.debug('Writing %d bytes of payload', len(self.payload))
             self.peer.transport.write(self.payload)
-        elif command == 'beiboot.exc':
-            raise PeerError('internal-error', message=f'Remote exception: {args[0]}')
         else:
             raise PeerError('internal-error', message=f'Unexpected ferny interaction command {command}')

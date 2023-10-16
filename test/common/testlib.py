@@ -223,8 +223,8 @@ class Browser:
           Error: When a timeout occurs waiting for the page to load.
         """
         if href.startswith("/"):
-            schema = tls and "https" or "http"
-            href = "%s://%s:%s%s" % (schema, self.address, self.port, href)
+            schema = "https" if tls else "http"
+            href = f"{schema}://{self.address}:{self.port}{href}"
 
         if not self.current_layout and os.environ.get("TEST_SHOW_BROWSER") in [None, "pixels"]:
             self.current_layout = self.layouts[0]
@@ -275,7 +275,10 @@ class Browser:
         self.cdp.set_frame(None)
 
     def upload_file(self, selector: str, file: str):
-        r = self.cdp.invoke("Runtime.evaluate", expression='document.querySelector(%s)' % jsquote(selector))
+        r = self.cdp.invoke(
+            "Runtime.evaluate",
+            expression=f'document.querySelector({jsquote(selector)})',
+        )
         objectId = r["result"]["objectId"]
         self.cdp.invoke("DOM.setFileInputFiles", files=[file], objectId=objectId)
 
@@ -289,7 +292,7 @@ class Browser:
             msg = str(details)
         if trailer:
             msg += "\n" + trailer
-        raise Error("%s(%s): %s" % (func, arg, msg))
+        raise Error(f"{func}({arg}): {msg}")
 
     def inject_js(self, code: str):
         """Execute JS code that does not return anything
@@ -319,7 +322,7 @@ class Browser:
             return result["result"]["value"]
 
         if opts.trace:
-            print("eval_js(%s): cannot interpret return value %s" % (code, result))
+            print(f"eval_js({code}): cannot interpret return value {result}")
         return None
 
     def call_js_func(self, func: str, *args: Any) -> Optional[Any]:
@@ -328,7 +331,7 @@ class Browser:
         :param func: JavaScript function to call
         :param args: arguments for the JavaScript function
         """
-        return self.eval_js("%s(%s)" % (func, ','.join(map(jsquote, args))))
+        return self.eval_js(f"{func}({','.join(map(jsquote, args))})")
 
     def set_mock(self, mock: Dict[str, str], base: Optional[str] = ""):
         """Replace some DOM elements with mock text
@@ -344,7 +347,7 @@ class Browser:
         :param mock: the mock data, see above
         :param base: if given, all selectors are relative to this one
         """
-        self.call_js_func('ph_set_texts', {base + " " + k: v for k, v in mock.items()})
+        self.call_js_func('ph_set_texts', {f"{base} {k}": v for k, v in mock.items()})
 
     def cookie(self, name: str):
         """Retrieve a browser cookie by name
@@ -353,10 +356,7 @@ class Browser:
         :type name: str
         """
         cookies = self.cdp.invoke("Network.getCookies")
-        for c in cookies["cookies"]:
-            if c["name"] == name:
-                return c
-        return None
+        return next((c for c in cookies["cookies"] if c["name"] == name), None)
 
     def go(self, url_hash: str):
         self.call_js_func('ph_go', url_hash)
@@ -382,7 +382,13 @@ class Browser:
 
         :param selector: the selector to click on
         """
-        self.mouse(selector + ":not([disabled]):not([aria-disabled=true])", "click", 0, 0, 0)
+        self.mouse(
+            f"{selector}:not([disabled]):not([aria-disabled=true])",
+            "click",
+            0,
+            0,
+            0,
+        )
 
     def val(self, selector: str):
         """Get the value attribute of a selector.
@@ -400,7 +406,7 @@ class Browser:
         :param selector: the selector to set the value of
         :param val: the value to set
         """
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         self.call_js_func('ph_set_val', selector, val)
 
     def text(self, selector: str):
@@ -427,7 +433,7 @@ class Browser:
         :param attr: the element attribute
         :param val: the value of the attribute
         """
-        self._wait_present(selector + ':not([disabled]):not([aria-disabled=true])')
+        self._wait_present(f'{selector}:not([disabled]):not([aria-disabled=true])')
         self.call_js_func('ph_set_attr', selector, attr, val)
 
     def get_checked(self, selector: str):
@@ -436,7 +442,7 @@ class Browser:
         :param selector: the selector
         :return: the checked state
         """
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         return self.call_js_func('ph_get_checked', selector)
 
     def set_checked(self, selector: str, val):
@@ -445,7 +451,7 @@ class Browser:
         :param selector: the selector
         :param val: boolean value to enable or disable checkbox
         """
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         self.call_js_func('ph_set_checked', selector, val)
 
     def focus(self, selector: str):
@@ -453,7 +459,7 @@ class Browser:
 
         :param selector: the selector
         """
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         self.call_js_func('ph_focus', selector)
 
     def blur(self, selector: str):
@@ -461,7 +467,7 @@ class Browser:
 
         :param selector: the selector
         """
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         self.call_js_func('ph_blur', selector)
 
     # TODO: Unify them so we can have only one
@@ -473,11 +479,8 @@ class Browser:
 
     def _key_press_chromium(self, keys: str, modifiers: int = 0, use_ord=False):
         for key in keys:
-            args = {"type": "keyDown", "modifiers": modifiers}
+            args = {"type": "keyDown", "modifiers": modifiers, "text": key}
 
-            # If modifiers are used we need to pass windowsVirtualKeyCode which is
-            # basically the asci decimal representation of the key
-            args["text"] = key
             if use_ord:
                 args["windowsVirtualKeyCode"] = ord(key)
             elif (not key.isalnum() and ord(key) < 32) or modifiers != 0:
@@ -503,9 +506,8 @@ class Browser:
             45: "Insert",     # Insert key
         }
         for key in keys:
-            args = {"type": "keyDown", "modifiers": modifiers}
+            args = {"type": "keyDown", "modifiers": modifiers, "key": key}
 
-            args["key"] = key
             if ord(key) < 32 or use_ord:
                 args["key"] = keyMap[ord(key)]
 
@@ -514,7 +516,7 @@ class Browser:
             self.cdp.invoke("Input.dispatchKeyEvent", **args)
 
     def select_from_dropdown(self, selector: str, value):
-        self.wait_visible(selector + ':not([disabled]):not([aria-disabled=true])')
+        self.wait_visible(f'{selector}:not([disabled]):not([aria-disabled=true])')
         text_selector = f"{selector} option[value='{value}']"
         self._wait_present(text_selector)
         self.set_val(selector, value)
@@ -533,7 +535,7 @@ class Browser:
         self.focus(selector)
         if not append:
             self.key_press("a", 2)  # Ctrl + a
-        if val == "":
+        if not val:
             self.key_press("\b")  # Backspace
         else:
             self.key_press(val)
@@ -567,8 +569,7 @@ class Browser:
 
     def wait(self, predicate: Callable):
         for _ in range(self.cdp.timeout * self.timeout_factor * 5):
-            val = predicate()
-            if val:
+            if val := predicate():
                 return val
             time.sleep(0.2)
         raise Error('timed out waiting for predicate to become true')
@@ -580,9 +581,14 @@ class Browser:
         while True:
             count += 1
             try:
-                result = self.cdp.invoke("Runtime.evaluate",
-                                         expression="ph_wait_cond(() => %s, %i, %s)" % (cond, timeout * 1000, error_description),
-                                         silent=False, awaitPromise=True, trace="wait: " + cond)
+                result = self.cdp.invoke(
+                    "Runtime.evaluate",
+                    expression="ph_wait_cond(() => %s, %i, %s)"
+                    % (cond, timeout * 1000, error_description),
+                    silent=False,
+                    awaitPromise=True,
+                    trace=f"wait: {cond}",
+                )
                 if "exceptionDetails" in result:
                     trailer = "\n".join(self.cdp.get_js_log())
                     self.raise_cdp_exception("timeout\nwait_js_cond", cond, result["exceptionDetails"], trailer)
@@ -600,7 +606,7 @@ class Browser:
                     raise e
 
     def wait_js_func(self, func: str, *args: Any):
-        self.wait_js_cond("%s(%s)" % (func, ','.join(map(jsquote, args))))
+        self.wait_js_cond(f"{func}({','.join(map(jsquote, args))})")
 
     def is_present(self, selector: str) -> Optional[bool]:
         return self.call_js_func('ph_is_present', selector)
@@ -647,8 +653,10 @@ class Browser:
 
     def wait_in_text(self, selector: str, text: str):
         self.wait_visible(selector)
-        self.wait_js_cond("ph_in_text(%s,%s)" % (jsquote(selector), jsquote(text)),
-                          error_description="() => 'actual text: ' + ph_text(%s)" % jsquote(selector))
+        self.wait_js_cond(
+            f"ph_in_text({jsquote(selector)},{jsquote(text)})",
+            error_description=f"() => 'actual text: ' + ph_text({jsquote(selector)})",
+        )
 
     def wait_not_in_text(self, selector: str, text: str):
         self.wait_visible(selector)
@@ -659,8 +667,10 @@ class Browser:
 
     def wait_text(self, selector: str, text: str):
         self.wait_visible(selector)
-        self.wait_js_cond("ph_text_is(%s,%s)" % (jsquote(selector), jsquote(text)),
-                          error_description="() => 'actual text: ' + ph_text(%s)" % jsquote(selector))
+        self.wait_js_cond(
+            f"ph_text_is({jsquote(selector)},{jsquote(text)})",
+            error_description=f"() => 'actual text: ' + ph_text({jsquote(selector)})",
+        )
 
     def wait_text_not(self, selector: str, text: str):
         self.wait_visible(selector)
@@ -675,25 +685,27 @@ class Browser:
 
         :param id: the 'id' attribute of the popup.
         """
-        self.wait_visible('#' + elem_id)
+        self.wait_visible(f'#{elem_id}')
 
     def wait_popdown(self, elem_id: str):
         """Wait for a popup to close.
 
         :param id: the 'id' attribute of the popup.
         """
-        self.wait_not_visible('#' + elem_id)
+        self.wait_not_visible(f'#{elem_id}')
 
     def wait_language(self, lang: str):
         parts = lang.split("-")
         code_1 = parts[0]
         code_2 = parts[0]
         if len(parts) > 1:
-            code_2 += "_" + parts[1].upper()
-        self.wait_js_cond("cockpit.language == '%s' || cockpit.language == '%s'" % (code_1, code_2))
+            code_2 += f"_{parts[1].upper()}"
+        self.wait_js_cond(
+            f"cockpit.language == '{code_1}' || cockpit.language == '{code_2}'"
+        )
 
     def dialog_cancel(self, sel: str, button: str = "button[data-dismiss='modal']"):
-        self.click(sel + " " + button)
+        self.click(f"{sel} {button}")
         self.wait_not_visible(sel)
 
     def enter_page(self, path: str, host: Optional[str] = None, reconnect: bool = True):
@@ -707,19 +719,16 @@ class Browser:
         :type reconnect: bool
         """
         assert path.startswith("/")
-        if host:
-            frame = host + path
-        else:
-            frame = "localhost" + path
-        frame = "cockpit1:" + frame
+        frame = host + path if host else f"localhost{path}"
+        frame = f"cockpit1:{frame}"
 
         self.switch_to_top()
 
         while True:
             try:
-                self._wait_present("iframe.container-frame[name='%s'][data-loaded]" % frame)
+                self._wait_present(f"iframe.container-frame[name='{frame}'][data-loaded]")
                 self.wait_not_visible(".curtains-ct")
-                self.wait_visible("iframe.container-frame[name='%s']" % frame)
+                self.wait_visible(f"iframe.container-frame[name='{frame}']")
                 break
             except Error as ex:
                 if reconnect and ex.msg.startswith('timeout'):
@@ -763,7 +772,9 @@ class Browser:
         if legacy_authorized is not None:
             self.set_checked('#authorized-input', legacy_authorized)
         if superuser is not None:
-            self.eval_js('window.localStorage.setItem("superuser:%s", "%s");' % (user, "any" if superuser else "none"))
+            self.eval_js(
+                f'window.localStorage.setItem("superuser:{user}", "{"any" if superuser else "none"}");'
+            )
         self.click('#login-button')
 
     def login_and_go(self, path: Optional[str] = None, user: Optional[str] = None, host: Optional[str] = None,
@@ -788,7 +799,7 @@ class Browser:
         if urlroot:
             href = urlroot + href
         if host:
-            href = "/@" + host + href
+            href = f"/@{host}{href}"
         self.open(href, tls=tls)
 
         self.try_login(user, password, superuser=superuser, legacy_authorized=legacy_authorized)
@@ -828,10 +839,7 @@ class Browser:
         self._wait_present('#content')
         self.wait_visible('#content')
         if path:
-            if path.startswith("/@"):
-                host = path[2:].split("/")[0]
-            else:
-                host = None
+            host = path[2:].split("/")[0] if path.startswith("/@") else None
             self.enter_page(path.split("#")[0], host=host)
 
     def open_session_menu(self):
@@ -900,17 +908,19 @@ class Browser:
             self.enter_page(path.split('#')[0].rstrip('/'))
 
     def ignore_ssl_certificate_errors(self, ignore: bool):
-        action = ignore and "continue" or "cancel"
+        action = "continue" if ignore else "cancel"
         if opts.trace:
-            print("-> Setting SSL certificate error policy to %s" % action)
+            print(f"-> Setting SSL certificate error policy to {action}")
         self.cdp.command(f"setSSLBadCertificateAction('{action}')")
 
     def grant_permissions(self, *args: str):
         """Grant permissions to the browser"""
         # https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-grantPermissions
-        self.cdp.invoke("Browser.grantPermissions",
-                        origin="http://%s:%s" % (self.address, self.port),
-                        permissions=args)
+        self.cdp.invoke(
+            "Browser.grantPermissions",
+            origin=f"http://{self.address}:{self.port}",
+            permissions=args,
+        )
 
     def snapshot(self, title: str, label: Optional[str] = None):
         """Take a snapshot of the current screen and save it as a PNG and HTML.
@@ -918,29 +928,33 @@ class Browser:
         Arguments:
             title: Used for the filename.
         """
-        if self.cdp and self.cdp.valid:
-            self.cdp.command("clearExceptions()")
+        if not self.cdp or not self.cdp.valid:
+            return
+        self.cdp.command("clearExceptions()")
 
-            filename = f"{label or self.label}-{title}.png"
-            if self.body_clip:
-                ret = self.cdp.invoke("Page.captureScreenshot", clip=self.body_clip, no_trace=True)
-            else:
-                ret = self.cdp.invoke("Page.captureScreenshot", no_trace=True)
-            if "data" in ret:
-                with open(filename, 'wb') as f:
-                    f.write(base64.standard_b64decode(ret["data"]))
-                attach(filename, move=True)
-                print("Wrote screenshot to " + filename)
-            else:
-                print("Screenshot not available")
-
-            filename = f"{label or self.label}-{title}.html"
-            html = self.cdp.invoke("Runtime.evaluate", expression="document.documentElement.outerHTML",
-                                   no_trace=True)["result"]["value"]
+        filename = f"{label or self.label}-{title}.png"
+        ret = (
+            self.cdp.invoke(
+                "Page.captureScreenshot", clip=self.body_clip, no_trace=True
+            )
+            if self.body_clip
+            else self.cdp.invoke("Page.captureScreenshot", no_trace=True)
+        )
+        if "data" in ret:
             with open(filename, 'wb') as f:
-                f.write(html.encode('UTF-8'))
+                f.write(base64.standard_b64decode(ret["data"]))
             attach(filename, move=True)
-            print("Wrote HTML dump to " + filename)
+            print(f"Wrote screenshot to {filename}")
+        else:
+            print("Screenshot not available")
+
+        filename = f"{label or self.label}-{title}.html"
+        html = self.cdp.invoke("Runtime.evaluate", expression="document.documentElement.outerHTML",
+                               no_trace=True)["result"]["value"]
+        with open(filename, 'wb') as f:
+            f.write(html.encode('UTF-8'))
+        attach(filename, move=True)
+        print(f"Wrote HTML dump to {filename}")
 
     def _set_window_size(self, width: int, height: int):
         self.cdp.invoke("Emulation.setDeviceMetricsOverride",
@@ -1031,7 +1045,7 @@ class Browser:
 
         if wait_animations:
             time.sleep(wait_delay)
-            self.wait_js_cond('ph_count_animations(%s) == 0' % jsquote(selector))
+            self.wait_js_cond(f'ph_count_animations({jsquote(selector)}) == 0')
 
         rect = self.call_js_func('ph_element_clip', selector)
 
@@ -1048,10 +1062,10 @@ class Browser:
             raise SystemError("Pixel test references are missing, please run: test/common/pixel-tests pull")
 
         ignore_rects = relative_clips([f"{selector} {item}" for item in ignore])
-        base = self.pixels_label + "-" + key
+        base = f"{self.pixels_label}-{key}"
         if self.current_layout != self.layouts[0]:
             base += "-" + self.current_layout["name"]
-        filename = base + "-pixels.png"
+        filename = f"{base}-pixels.png"
         ref_filename = os.path.join(reference_dir, filename)
         self.used_pixel_references.add(ref_filename)
         ret = self.cdp.invoke("Page.captureScreenshot", clip=rect, no_trace=True)
@@ -1061,7 +1075,7 @@ class Browser:
             with open(filename, 'wb') as f:
                 f.write(png_now)
             attach(filename, move=True)
-            print("New pixel test reference " + filename)
+            print(f"New pixel test reference {filename}")
             self.failed_pixel_tests += 1
         else:
             img_now = Image.open(io.BytesIO(png_now)).convert("RGBA")
@@ -1135,13 +1149,13 @@ class Browser:
                     img_now.putalpha(img_ref.getchannel("A"))
                 img_now.save(filename)
                 attach(filename, move=True)
-                ref_filename_for_attach = base + "-reference.png"
+                ref_filename_for_attach = f"{base}-reference.png"
                 img_ref.save(ref_filename_for_attach)
                 attach(ref_filename_for_attach, move=True)
-                delta_filename = base + "-delta.png"
+                delta_filename = f"{base}-delta.png"
                 img_delta.save(delta_filename)
                 attach(delta_filename, move=True)
-                print("Differences in pixel test " + base)
+                print(f"Differences in pixel test {base}")
                 self.failed_pixel_tests += 1
 
     def assert_pixels(self, selector: str, key: str,
@@ -1197,29 +1211,32 @@ class Browser:
         if not (Image and self.pixels_label):
             return
 
-        pixel_references = set(glob.glob(os.path.join(TEST_DIR, "reference", self.pixels_label + "*-pixels.png")))
+        pixel_references = set(
+            glob.glob(
+                os.path.join(
+                    TEST_DIR, "reference", f"{self.pixels_label}*-pixels.png"
+                )
+            )
+        )
         unused = pixel_references - self.used_pixel_references
         for u in unused:
-            print("Unused reference image " + os.path.basename(u))
+            print(f"Unused reference image {os.path.basename(u)}")
             self.failed_pixel_tests += 1
 
     def get_js_log(self):
         """Return the current javascript log"""
 
-        if self.cdp:
-            return self.cdp.get_js_log()
-        return []
+        return self.cdp.get_js_log() if self.cdp else []
 
     def copy_js_log(self, title: str, label: Optional[str] = None):
         """Copy the current javascript log"""
 
-        logs = list(self.get_js_log())
-        if logs:
+        if logs := list(self.get_js_log()):
             filename = f"{label or self.label}-{title}.js.log"
             with open(filename, 'wb') as f:
                 f.write('\n'.join(logs).encode('UTF-8'))
             attach(filename, move=True)
-            print("Wrote JS log to " + filename)
+            print(f"Wrote JS log to {filename}")
 
     def kill(self):
         self.cdp.kill()
@@ -1274,7 +1291,7 @@ class MachineCase(unittest.TestCase):
             cls.global_machine = None
 
     def label(self):
-        return self.__class__.__name__ + '-' + self._testMethodName
+        return f'{self.__class__.__name__}-{self._testMethodName}'
 
     def new_machine(self, image=None, forward=None, restrict=True, cleanup=True, **kwargs):
         machine_class = self.machine_class
@@ -1307,7 +1324,7 @@ class MachineCase(unittest.TestCase):
     def new_browser(self, machine=None, coverage=False):
         if machine is None:
             machine = self.machine
-        label = self.label() + "-" + machine.label
+        label = f"{self.label()}-{machine.label}"
         pixels_label = None
         if os.environ.get("TEST_BROWSER", "chromium") == "chromium" and not self.is_devel_build():
             try:
@@ -1441,7 +1458,7 @@ class MachineCase(unittest.TestCase):
         self.default_btn_class = '.pf-m-secondary'
 
         # Now wait for the other machines to be up
-        for key in self.machines.keys():
+        for key in self.machines:
             machine = self.machines[key]
             machine.wait_boot()
             address = provision[key].get("address")
@@ -1450,8 +1467,7 @@ class MachineCase(unittest.TestCase):
             dns = provision[key].get("dns")
             if address or dns:
                 machine.set_dns(dns)
-            dhcp = provision[key].get("dhcp", False)
-            if dhcp:
+            if dhcp := provision[key].get("dhcp", False):
                 machine.dhcp_server()
 
         self.journal_start = self.machine.journal_cursor()
@@ -1477,9 +1493,9 @@ class MachineCase(unittest.TestCase):
         m = self.machine
 
         # helps with mapping journal output to particular tests
-        name = "%s.%s" % (self.__class__.__name__, self._testMethodName)
-        m.execute("logger -p user.info 'COCKPITTEST: start %s'" % name)
-        self.addCleanup(m.execute, "logger -p user.info 'COCKPITTEST: end %s'" % name)
+        name = f"{self.__class__.__name__}.{self._testMethodName}"
+        m.execute(f"logger -p user.info 'COCKPITTEST: start {name}'")
+        self.addCleanup(m.execute, f"logger -p user.info 'COCKPITTEST: end {name}'")
 
         # core dumps get copied per-test, don't clobber subsequent tests with them
         self.addCleanup(m.execute, "find /var/lib/systemd/coredump -type f -delete")
@@ -1500,7 +1516,8 @@ class MachineCase(unittest.TestCase):
         def cleanup_home_dirs():
             for d in m.execute("ls /home").strip().split():
                 if d not in home_dirs:
-                    m.execute("rm -r /home/" + d)
+                    m.execute(f"rm -r /home/{d}")
+
         self.addCleanup(cleanup_home_dirs)
 
         if m.image == "arch":
@@ -1898,6 +1915,7 @@ class MachineCase(unittest.TestCase):
                     del dictionary[key]
                 except KeyError:
                     pass
+
         delkeys(report, "passes", "inapplicable", "timestamp")
 
         for outcome in ["violations", "incomplete"]:
@@ -1920,11 +1938,11 @@ class MachineCase(unittest.TestCase):
 
         # write the report
         if suffix:
-            suffix = "-" + suffix
+            suffix = f"-{suffix}"
         filename = f"{label or self.label()}{suffix}-axe.json.gz"
         with gzip.open(filename, "wb") as f:
             f.write(json.dumps(report).encode('UTF-8'))
-        print("Wrote accessibility report to " + filename)
+        print(f"Wrote accessibility report to {filename}")
         attach(filename, move=True)
 
         # aXe triggers that *shrug*
@@ -1956,10 +1974,10 @@ class MachineCase(unittest.TestCase):
     def copy_journal(self, title: str, label: Optional[str] = None):
         for _, m in self.machines.items():
             if m.ssh_reachable:
-                log = "%s-%s-%s.log.gz" % (label or self.label(), m.label, title)
+                log = f"{label or self.label()}-{m.label}-{title}.log.gz"
                 with open(log, "w") as fp:
                     m.execute("journalctl|gzip", stdout=fp)
-                    print("Journal extracted to %s" % (log))
+                    print(f"Journal extracted to {log}")
                     attach(log, move=True)
 
     def copy_cores(self, title: str, label: Optional[str] = None):
@@ -1967,7 +1985,7 @@ class MachineCase(unittest.TestCase):
             return
         for _, m in self.machines.items():
             if m.ssh_reachable:
-                directory = "%s-%s-%s.core" % (label or self.label(), m.label, title)
+                directory = f"{label or self.label()}-{m.label}-{title}.core"
                 dest = os.path.abspath(directory)
                 # overwrite core dumps from previous retries
                 if os.path.exists(dest):
@@ -1977,7 +1995,7 @@ class MachineCase(unittest.TestCase):
                     os.rmdir(dest)
                 except OSError as ex:
                     if ex.errno == errno.ENOTEMPTY:
-                        print("Core dumps downloaded to %s" % (dest))
+                        print(f"Core dumps downloaded to {dest}")
                         # Enable this to temporarily(!) create artifacts for core dumps, if a crash is hard to reproduce
                         # attach(dest, move=True)
 
@@ -2171,7 +2189,7 @@ def get_decorator(method, _class, name, default=None):
 
     Return None if the decorator was not set.
     """
-    attr = "_testlib__" + name
+    attr = f"_testlib__{name}"
     return getattr(method, attr, getattr(_class, attr, default))
 
 
@@ -2277,10 +2295,7 @@ def todoPybridge(reason=None):
             is_pybridge = self.is_pybridge()
             try:
                 test_method(self)
-                if is_pybridge:
-                    return self.fail(reason)
-                return None
-            # only accept our testlib Errors, plus RuntimeError for TestSuperuserDashboardOldMachine
+                return self.fail(reason) if is_pybridge else None
             except (Error, RuntimeError):
                 if is_pybridge:
                     traceback.print_exc()
@@ -2510,18 +2525,13 @@ def wait(func: Callable, msg: Optional[str] = None, delay: int = 1, tries: int =
     :raises Error: When a timeout occurs.
     """
 
-    t = 0
-    while t < tries:
+    for t in range(tries):
         try:
-            val = func()
-            if val:
+            if val := func():
                 return val
         except Exception:
             if t == tries - 1:
                 raise
-            else:
-                pass
-        t = t + 1
         sleep(delay)
     raise Error(msg or "Condition did not become true.")
 

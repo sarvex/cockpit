@@ -129,11 +129,11 @@ def convert_description(xml, *, use_lang=True):
             continue
         if c.tag == 'p':
             res.append(text(c))
-        elif c.tag == 'ul' or c.tag == 'ol':
+        elif c.tag in ['ul', 'ol']:
             res.append({'tag': c.tag, 'items': list(map(text, c.findall('li')))})
 
     # If we found nothing that matches lang, fall back to default
-    if lang is not None and len(res) == 0:
+    if lang is not None and not res:
         res = convert_description(xml, use_lang=False)
 
     return res
@@ -151,16 +151,12 @@ def convert_cached_icon(directory, origin, xml):
 
 def convert_remote_icon(xml):
     url = xml.text
-    if url.startswith(('http://', 'https://')):
-        return url
-    return None
+    return url if url.startswith(('http://', 'https://')) else None
 
 
 def convert_local_icon(xml):
     path = xml.text
-    if path.startswith("/"):
-        return path
-    return None
+    return path if path.startswith("/") else None
 
 
 def find_and_convert_icon(directory, origin, xml):
@@ -187,10 +183,11 @@ def convert_screenshots(xml):
 
     shots = []
     for sh in xml.iter('screenshot'):
-        for img in sh.iter('image'):
-            if img.attrib['type'] == 'source':
-                shots.append({'full': img.text})
-
+        shots.extend(
+            {'full': img.text}
+            for img in sh.iter('image')
+            if img.attrib['type'] == 'source'
+        )
     return shots
 
 
@@ -206,12 +203,10 @@ def convert_launchables(xml):
 
 
 def convert_urls(xml):
-    urls = []
-
-    for url in xml.iter('url'):
-        urls.append({'type': url.attrib['type'], 'link': url.text})
-
-    return urls
+    return [
+        {'type': url.attrib['type'], 'link': url.text}
+        for url in xml.iter('url')
+    ]
 
 
 def convert_collection_component(directory, origin, xml):
@@ -284,9 +279,7 @@ class MetainfoDB:
                 try:
                     comp = convert_collection_component(os.path.dirname(file), origin, xml_comp)
                     if comp is not None:
-                        if comp['id'] in info:
-                            pass  # warning: duplicate id
-                        else:
+                        if comp['id'] not in info:
                             info[comp['id']] = comp
                 except KeyError:
                     pass
@@ -300,9 +293,7 @@ class MetainfoDB:
         comps = {}
         for file in self.installed_by_file:
             comp = self.installed_by_file[file]
-            if comp['id'] in comps:
-                pass  # warn dup
-            else:
+            if comp['id'] not in comps:
                 comps[comp['id']] = comp
         for file in self.available_by_file:
             for comp_id in self.available_by_file[file]:
@@ -346,7 +337,7 @@ def watch_db():
             # makes the behavior consistent across restarts of this
             # watcher.
             callback(path, None)
-            sys.stderr.write("%s: " % path)
+            sys.stderr.write(f"{path}: ")
             sys.stderr.write("".join(traceback.format_exception_only(sys.exc_info()[0], sys.exc_info()[1])))
             sys.stderr.flush()
 
