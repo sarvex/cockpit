@@ -15,11 +15,7 @@ from machine_core import ssh_connection
 def getMaximumSpike(test, g_type, saturation, hour, minute):
     # only for minutes with events, which have SVG graphs
     sel = f"#metrics-hour-{hour} div.metrics-minute[data-minute='{minute}'] div.metrics-data-{g_type} div"
-    if saturation:
-        sel += ":nth-child(2)"
-    else:
-        sel += ":first-child"
-
+    sel += ":nth-child(2)" if saturation else ":first-child"
     points = test.browser.attr(sel, "points")
     xs = [float(x.split(" ")[0].rstrip("%")) for x in points.split(", ") if x != ""]
     test.assertNotIn("NaN", xs)
@@ -38,7 +34,7 @@ def getCompressedMinuteValue(test, g_type, saturation, hour, minute):
 
 
 def progressValue(test, progress_bar_sel):
-    sel = progress_bar_sel + " .pf-v5-c-progress__indicator"
+    sel = f"{progress_bar_sel} .pf-v5-c-progress__indicator"
     test.browser.wait_visible(sel)
     test.browser.wait_attr_contains(sel, "style", "width:")
     style = test.browser.attr(sel, "style")
@@ -75,9 +71,7 @@ def prepareArchive(machine, name, time, hostname="localhost.localdomain"):
 
 
 def redisService(image):
-    if image.startswith(("debian", "ubuntu")):
-        return "redis-server"
-    return "redis"
+    return "redis-server" if image.startswith(("debian", "ubuntu")) else "redis"
 
 
 def applySettings(browser, dialog_selector):
@@ -778,7 +772,7 @@ class TestCurrentMetrics(testlib.MachineCase):
         b.wait_timeout(60)
 
         nproc = m.execute("nproc").strip()
-        b.wait_in_text("#current-cpu-usage", nproc + " CPU")
+        b.wait_in_text("#current-cpu-usage", f"{nproc} CPU")
         # top CPU core is not visible with just 1 core; our upstream test VMs have only 1 core,
         # but let's not just assume this for downstream gating/custom VMs
         if nproc == '1':
@@ -1494,7 +1488,9 @@ class TestGrafanaClient(testlib.MachineCase):
         b.click(".pf-v5-c-alert button.pf-m-primary")
 
         # Log into Grafana (usually http://127.0.0.2:3002 if you do it interactively)
-        bg = testlib.Browser(mg.forward['3000'], label=self.label() + "-" + mg.label, machine=self)
+        bg = testlib.Browser(
+            mg.forward['3000'], label=f"{self.label()}-{mg.label}", machine=self
+        )
         try:
             bg.open("/")
             bg.wait_in_text("body", "Welcome to Grafana")

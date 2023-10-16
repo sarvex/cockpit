@@ -19,7 +19,7 @@ class BrowserTest(unittest.TestCase):
         # Hide localstorage to start browser from clean state
         cls.datadir = os.path.expanduser("~/.var/app/org.cockpit_project.CockpitClient")
         if os.path.exists(cls.datadir):
-            cls.data_backup = cls.datadir + ".cockpittest"
+            cls.data_backup = f"{cls.datadir}.cockpittest"
             os.rename(cls.datadir, cls.data_backup)
         else:
             cls.data_backup = None
@@ -121,9 +121,7 @@ class BrowserTest(unittest.TestCase):
         # check that `invalid` was not added and try to remove `localhost` from the list
         self.assertEqual(self.run_js("test-browser-login-remove.js"), "PASS")
 
-        # SSH login
-        host = os.environ.get("COCKPIT_TEST_SSH_HOST")
-        if host:
+        if host := os.environ.get("COCKPIT_TEST_SSH_HOST"):
             substs = [
                 ("%HOST%", host),
                 ("%PASS%", os.environ["COCKPIT_TEST_SSH_PASS"]),

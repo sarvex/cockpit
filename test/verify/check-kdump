@@ -275,7 +275,7 @@ class TestKdump(KdumpHelpers):
         b.click("button:contains('Save')")
         b.wait_not_present("#kdump-settings-dialog")
         conf = m.execute("cat /etc/kdump.conf")
-        self.assertIn(current + " -c", conf)
+        self.assertIn(f"{current} -c", conf)
 
     @testlib.nondestructive
     def testConfigurationSUSE(self):

@@ -34,7 +34,7 @@ class TestStorageIgnored(storagelib.StorageCase):
 
         m.execute(f"yes | mke2fs -q -L TESTLABEL {disk}")
         with b.wait_timeout(30):
-            b.wait_in_text("#mounts", disk + " (TESTLABEL)")
+            b.wait_in_text("#mounts", f"{disk} (TESTLABEL)")
 
         # Hide it via a udev rule
         m.write("/run/udev/rules.d/99-ignore.rules",

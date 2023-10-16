@@ -42,20 +42,18 @@ def gather_files(name, suffix):
 def unit_exists(unit):
     load_state = subprocess.check_output(["systemctl", "show", "--value", "-p", "LoadState", unit],
                                          universal_newlines=True).strip()
-    return load_state != "not-found" and load_state != "masked"
+    return load_state not in ["not-found", "masked"]
 
 
 def first_unit(files):
     for f in files:
         with open(f) as c:
-            for ll in c.readlines():
+            for ll in c:
                 w = ll.strip()
                 if w != "" and not w.startswith("#") and unit_exists(w):
                     return w
     return None
 
 
-unit = first_unit(gather_files("systemd/ntp-units.d", ".list"))
-
-if unit:
+if unit := first_unit(gather_files("systemd/ntp-units.d", ".list")):
     print(unit)

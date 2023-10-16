@@ -115,7 +115,7 @@ class Bridge(Router, PackagesListener):
                 return {}
 
         os_release = {}
-        for line in file.readlines():
+        for line in file:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
@@ -176,11 +176,8 @@ async def run(args) -> None:
 
     logger.debug('Startup done.  Looping until connection closes.')
 
-    try:
+    with contextlib.suppress(BrokenPipeError, ConnectionResetError):
         await router.communicate()
-    except (BrokenPipeError, ConnectionResetError):
-        # not unexpected if the peer doesn't hang up cleanly
-        pass
 
 
 def try_to_receive_stderr():
@@ -215,11 +212,8 @@ def setup_logging(*, debug: bool):
         logging.getLogger().setLevel(level=logging.DEBUG)
     elif modules:
         for module in modules.split(','):
-            module = module.strip()
-            if not module:
-                continue
-
-            logging.getLogger(module).setLevel(logging.DEBUG)
+            if module := module.strip():
+                logging.getLogger(module).setLevel(logging.DEBUG)
 
 
 def start_ssh_agent() -> None:

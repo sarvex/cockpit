@@ -64,13 +64,9 @@ class TestUpdates(NoSubManCase):
 
         # only the yum and PackageKit ≥ 1.2.4 dnf (https://github.com/PackageKit/PackageKit/issues/268) backends
         # properly recognize "enhancement" severity; apt does not have that metadata
-        self.supports_severity = not (self.backend == "apt" or pkcon_version < "1.2.4")
+        self.supports_severity = self.backend != "apt" and pkcon_version >= "1.2.4"
 
-        if self.supports_severity:
-            self.enhancement_severity = "enhancement"
-        else:
-            self.enhancement_severity = "bug"
-
+        self.enhancement_severity = "enhancement" if self.supports_severity else "bug"
         self.update_icon = "#page_status_notification_updates svg"
         self.update_text = "#page_status_notification_updates"
         self.update_text_action = "#page_status_notification_updates a"
@@ -97,25 +93,27 @@ class TestUpdates(NoSubManCase):
             for idx, pkg in enumerate(pkgname, 1):
                 self.assertEqual(b.text(row + "tr:first-child [data-label=Name] > div:nth-of-type(%i) span" % idx).split(', ', 1)[0], pkg)
         else:
-            self.assertEqual(b.text(row + " tr:first-child [data-label=Name]"), pkgname)
-            b.mouse(row + "tr:first-child [data-label=Name] span", "mouseenter")
-            b.wait_text(".pf-v5-c-tooltip", "dummy " + pkgname + " (" + arch + ")")
-            b.mouse(row + "tr:first-child [data-label=Name] span", "mouseleave")
+            self.assertEqual(b.text(f"{row} tr:first-child [data-label=Name]"), pkgname)
+            b.mouse(f"{row}tr:first-child [data-label=Name] span", "mouseenter")
+            b.wait_text(".pf-v5-c-tooltip", f"dummy {pkgname} ({arch})")
+            b.mouse(f"{row}tr:first-child [data-label=Name] span", "mouseleave")
             b.wait_not_present(".pf-v5-c-tooltip")
-        self.assertEqual(b.text(row + "[data-label=Version]"), version)
+        self.assertEqual(b.text(f"{row}[data-label=Version]"), version)
         # verify type
         severity_to_aria = {"bug": "bug fix", "enhancement": "enhancement", "security": "security"}
         b.wait_visible(f"{row} [data-label=Severity] .severity-icon[aria-label='{severity_to_aria[severity]}']")
-        self.assertEqual(b.text(row + "[data-label=Severity]").strip(),
-                         num_issues is not None and str(num_issues) or "")
+        self.assertEqual(
+            b.text(f"{row}[data-label=Severity]").strip(),
+            num_issues is not None and str(num_issues) or "",
+        )
 
         # should not be expanded by default
         self.assertNotIn("pf-m-expanded", b.attr(row, "class"))
         # expand
-        b.click(row + "td.pf-v5-c-table__toggle button")
+        b.click(f"{row}td.pf-v5-c-table__toggle button")
         self.assertIn("pf-m-expanded", b.attr(row, "class"))
-        b.wait_in_text(row + "> tr.pf-m-expanded", "Packages")
-        desc = b.text(row + "> tr.pf-m-expanded")
+        b.wait_in_text(f"{row}> tr.pf-m-expanded", "Packages")
+        desc = b.text(f"{row}> tr.pf-m-expanded")
 
         # details should contain all description bits, CVEs and bug numbers
         for m in (desc_matches or []) + (cves or []) + (bugs or []):
@@ -179,7 +177,7 @@ class TestUpdates(NoSubManCase):
         self.assertEqual(m.execute("systemctl is-enabled kpatch").strip(), "enabled")
         self.assertEqual(m.execute("systemctl is-active kpatch").strip(), "active")
         # Patches should be installed
-        m.execute("rpm -q kpatch-patch-" + sanitized_kernel_ver)
+        m.execute(f"rpm -q kpatch-patch-{sanitized_kernel_ver}")
 
         # Faking real patches is really hard, so fake `kpatch list` command
         # To make sure it has the same structure as we expect it to be first check the real command
@@ -189,10 +187,15 @@ class TestUpdates(NoSubManCase):
 echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled patch modules:\nkpatch_3_10_0_1062_1_1 (3.10.0-1062.el7.x86_64)"
 """
 
-        self.createPackage("kpatch-patch-" + sanitized_kernel_ver, "1", "0", arch=self.secondary_arch,
-                           provides=f"kpatch-patch = {kernel_ver_arch}",
-                           content={"/usr/local/bin/kpatch": kpatch},
-                           postinst="chmod +x /usr/local/bin/kpatch; mount -o bind /usr/local/bin/kpatch /usr/sbin/kpatch")
+        self.createPackage(
+            f"kpatch-patch-{sanitized_kernel_ver}",
+            "1",
+            "0",
+            arch=self.secondary_arch,
+            provides=f"kpatch-patch = {kernel_ver_arch}",
+            content={"/usr/local/bin/kpatch": kpatch},
+            postinst="chmod +x /usr/local/bin/kpatch; mount -o bind /usr/local/bin/kpatch /usr/sbin/kpatch",
+        )
         # Mix in an normal update and ensure it's not updated
         self.createPackage("vanilla", "1.0", "1", install=True)
         self.createPackage("vanilla", "1.0", "2")
@@ -226,7 +229,7 @@ echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled pa
         self.assertEqual(m.execute("systemctl is-enabled kpatch").strip(), "enabled")
         self.assertEqual(m.execute("systemctl is-active kpatch").strip(), "active")
         # Patches should be installed
-        m.execute("rpm -q kpatch-patch-" + sanitized_kernel_ver)
+        m.execute(f"rpm -q kpatch-patch-{sanitized_kernel_ver}")
 
         # Test disabling applying patches
         b.click("#kpatch-settings button:contains('Edit')")
@@ -252,7 +255,7 @@ echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled pa
         # Test 'for current kernel only' from clean state
         m.execute("umount /usr/sbin/kpatch")
         m.execute("systemctl restart kpatch")
-        m.execute("dnf -y remove kpatch-patch-" + sanitized_kernel_ver)
+        m.execute(f"dnf -y remove kpatch-patch-{sanitized_kernel_ver}")
         b.reload()  # Not listening on patches being removed
         b.enter_page("/updates")
 
@@ -273,7 +276,7 @@ echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled pa
         self.assertEqual(m.execute("systemctl is-enabled kpatch").strip(), "enabled")
         self.assertEqual(m.execute("systemctl is-active kpatch").strip(), "active")
         # Patches should be installed
-        m.execute("rpm -q kpatch-patch-" + sanitized_kernel_ver)
+        m.execute(f"rpm -q kpatch-patch-{sanitized_kernel_ver}")
 
     @testlib.nondestructive
     def testBasic(self):
@@ -290,7 +293,7 @@ echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled pa
                 code = m.execute("tracer > /dev/null 2>&1; echo $?").rstrip()
                 if code == "104":
                     b.wait_in_text("#status p", "a system reboot")
-                elif code == "102" or code == "101":
+                elif code in ["102", "101"]:
                     b.wait_in_text("#status p", "to be restarted")
                 else:
                     b.wait_in_text("#status p", "System is up to date")
@@ -435,6 +438,8 @@ echo -e "Loaded patch modules:\nkpatch_3_10_0_1062_1_1 [enabled]\n\nInstalled pa
         b = self.browser
         m = self.machine
 
+
+
         class Tracer(object):
             def __init__(self, testObj, rebootRequired=False, testStatusCard=False, packageName="vanilla"):
                 self.testObj = testObj
@@ -493,11 +498,7 @@ ExecStart=/usr/local/bin/{self.packageName}
                 b.wait_visible("#ignore")
                 b.wait_visible(".updates-success-table")
 
-                if self.rebootRequired:
-                    rowId = "#reboot-row"
-                else:
-                    rowId = "#service-row"
-
+                rowId = "#reboot-row" if self.rebootRequired else "#service-row"
                 b.wait_visible(f"{rowId}")
                 b.click(f"{rowId} button")
                 b.wait_visible(f"{rowId} + tr")
@@ -531,33 +532,31 @@ ExecStart=/usr/local/bin/{self.packageName}
                         b.click("#restart-services-modal button:contains('Restart services')")
                         b.wait_not_present("#restart-services-modal")
 
-                # test the tracer functionality works in-page after successful update
-                else:
-                    if self.rebootRequired:
-                        # update required a reboot
-                        b.wait_not_present("#choose-service")
-                        b.click("#reboot-system")
-                        b.wait_visible("#shutdown-dialog")
-                        b.click("#delay")
-                        b.click("button:contains('No delay')")
-                        b.wait_text("#delay .pf-v5-c-select__toggle-text", "No delay")
-                        b.click("#shutdown-dialog button:contains('Reboot')")
-                        b.switch_to_top()
-                        b.wait_in_text(".curtains-ct h1", "Disconnected")
+                elif self.rebootRequired:
+                    # update required a reboot
+                    b.wait_not_present("#choose-service")
+                    b.click("#reboot-system")
+                    b.wait_visible("#shutdown-dialog")
+                    b.click("#delay")
+                    b.click("button:contains('No delay')")
+                    b.wait_text("#delay .pf-v5-c-select__toggle-text", "No delay")
+                    b.click("#shutdown-dialog button:contains('Reboot')")
+                    b.switch_to_top()
+                    b.wait_in_text(".curtains-ct h1", "Disconnected")
 
-                        # ensure that rebooting actually worked
-                        m.wait_reboot()
-                        m.start_cockpit()
-                        b.reload()
-                        b.login_and_go("/updates")
-                    else:
-                        # update required a service restart
-                        b.wait_not_present("#reboot-system")
-                        b.click("#choose-service")
-                        b.wait_visible("#restart-services-modal")
-                        b.wait_in_text(".restart-services-modal-body", self.packageName)
-                        b.click("#restart-services-modal button:contains('Restart services')")
-                        b.wait_not_present("#restart-services-modal")
+                    # ensure that rebooting actually worked
+                    m.wait_reboot()
+                    m.start_cockpit()
+                    b.reload()
+                    b.login_and_go("/updates")
+                else:
+                    # update required a service restart
+                    b.wait_not_present("#reboot-system")
+                    b.click("#choose-service")
+                    b.wait_visible("#restart-services-modal")
+                    b.wait_in_text(".restart-services-modal-body", self.packageName)
+                    b.click("#restart-services-modal button:contains('Restart services')")
+                    b.wait_not_present("#restart-services-modal")
 
                 # check no updates are present
                 b.wait_in_text("#status", "System is up to date")
@@ -584,6 +583,7 @@ ExecStart=/usr/local/bin/{self.packageName}
                     m.execute(f"rpm -e {self.packageName}")
                 if self.rebootRequired:
                     m.execute("rm /etc/tracer/applications.xml")
+
 
         Tracer(
             testObj=self,
@@ -732,51 +732,63 @@ ExecStart=/usr/local/bin/{packageName}
 
         if self.backend == 'yum':
             # sevcritical has a severity and errata
-            details = b.text(sel + " .pf-m-expanded")
+            details = b.text(f"{sel} .pf-m-expanded")
             self.assertIn("Severity", details)
             self.assertIn("critical", details)
             self.assertIn("Errata", details)
             self.assertIn("RHSA-2000:0001", details)
             self.assertIn("RHSA-2000:0002", details)
             # icon has critical class
-            self.assertIn("severity-critical", b.attr(sel + " .severity-icon", "class"))
-            b.mouse(sel + " .severity-icon", "mouseenter")
+            self.assertIn("severity-critical", b.attr(f"{sel} .severity-icon", "class"))
+            b.mouse(f"{sel} .severity-icon", "mouseenter")
             b.wait_text(".pf-v5-c-tooltip", "critical")
-            b.mouse(sel + " .severity-icon", "mouseleave")
+            b.mouse(f"{sel} .severity-icon", "mouseleave")
             b.wait_not_present(".pf-v5-c-tooltip")
             # details has link to severity definition
-            self.assertIn("access.redhat.com", b.attr(sel + " .pf-m-expanded dd.severity a:first-of-type", "href"))
+            self.assertIn(
+                "access.redhat.com",
+                b.attr(
+                    f"{sel} .pf-m-expanded dd.severity a:first-of-type", "href"
+                ),
+            )
 
         # buggy: bug refs, no security
         sel = self.check_nth_update(4, "buggy", "2-2", "bug", 2, bugs=["123", "456"], desc_matches=["Fixit"])
         # should filter out enumeration in overview
-        ch = b.eval_js(f"document.querySelector(\"{sel + ' td.changelog'}\").innerHTML")
+        ch = b.eval_js(f'document.querySelector(\"{sel} td.changelog\").innerHTML')
         self.assertNotIn("<li>", ch)
         self.assertNotIn("*", ch)
         # should show bug fix icon and pf-v5-c-tooltip
-        self.assertEqual(b.attr(sel + " .severity-icon", "aria-label"), "bug fix")
-        b.mouse(sel + " .severity-icon", "mouseenter")
+        self.assertEqual(b.attr(f"{sel} .severity-icon", "aria-label"), "bug fix")
+        b.mouse(f"{sel} .severity-icon", "mouseenter")
         b.wait_text(".pf-v5-c-tooltip", "bug fix")
-        b.mouse(sel + " .severity-icon", "mouseleave")
+        b.mouse(f"{sel} .severity-icon", "mouseleave")
         b.wait_not_present(".pf-v5-c-tooltip")
 
         # norefs: just changelog, show both binary packages
         sel = self.check_nth_update(5, ["norefs-bin", "norefs-doc"], "2-1", self.enhancement_severity,
                                     desc_matches=["Now 10% more unicorns"])
         # verify Markdown formatting in table cell
-        self.assertEqual(b.text(sel + " td.changelog em"), "more")  # *more*
-        self.assertEqual(b.attr(sel + " td.changelog a", "href"), "http://unicorn.example.com")
-        self.assertEqual(b.attr(sel + " td.changelog a", "target"), "_blank")
+        self.assertEqual(b.text(f"{sel} td.changelog em"), "more")
+        self.assertEqual(
+            b.attr(f"{sel} td.changelog a", "href"), "http://unicorn.example.com"
+        )
+        self.assertEqual(b.attr(f"{sel} td.changelog a", "target"), "_blank")
         # verify Markdown formatting in details
-        self.assertEqual(b.text(sel + " .pf-m-expanded em"), "more")  # *more*
-        self.assertEqual(b.attr(sel + " .pf-m-expanded a:first-of-type", "href"), "http://unicorn.example.com")
-        self.assertEqual(b.attr(sel + " .pf-m-expanded a:first-of-type", "target"), "_blank")
+        self.assertEqual(b.text(f"{sel} .pf-m-expanded em"), "more")
+        self.assertEqual(
+            b.attr(f"{sel} .pf-m-expanded a:first-of-type", "href"),
+            "http://unicorn.example.com",
+        )
+        self.assertEqual(
+            b.attr(f"{sel} .pf-m-expanded a:first-of-type", "target"), "_blank"
+        )
 
         # verify that changelog is absent in mobile
         b.set_layout("mobile")
-        b.wait_not_visible(sel + " td.changelog em")
+        b.wait_not_visible(f"{sel} td.changelog em")
         b.set_layout("desktop")
-        b.wait_visible(sel + " td.changelog em")
+        b.wait_visible(f"{sel} td.changelog em")
 
         # updates are shown on system page
         b.go("/system")
@@ -923,10 +935,7 @@ ExecStart=/usr/local/bin/{packageName}
             self.createPackage(f"fine{i:02}", "1", "1", install=True)
             self.createPackage(f"fine{i:02}", "1", "2", changes="make it better")
 
-        # update with long changelog
-        long_changelog = ""
-        for i in range(30):
-            long_changelog += f" - Things change #{i:02}\n"
+        long_changelog = "".join(f" - Things change #{i:02}\n" for i in range(30))
         self.createPackage("verbose", "1", "1", install=True)
         self.createPackage("verbose", "1", "2", changes=long_changelog)
 
@@ -1046,7 +1055,12 @@ ExecStart=/usr/local/bin/{packageName}
         # this tends to corrupt the rpm database, so do a backup/restore
         if self.backend == 'dnf':
             # https://www.fedoraproject.org/wiki/Changes/RelocateRPMToUsr
-            exists = self.machine.execute("if test -e %s; then echo yes; fi" % "/usr/lib/sysimage/rpm").strip() != ""
+            exists = (
+                self.machine.execute(
+                    'if test -e /usr/lib/sysimage/rpm; then echo yes; fi'
+                ).strip()
+                != ""
+            )
             if exists:
                 self.restore_dir("/usr/lib/sysimage/rpm")
             else:

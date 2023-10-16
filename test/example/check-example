@@ -93,11 +93,11 @@ class TestTodo(unittest.TestCase):
 
     @testlib.todo('2 is not yet sufficiently large')
     def testTodoFail(self):
-        assert 2 + 2 == 5
+        assert 2 == 3
 
     @testlib.todo('2 is not yet sufficiently large')
     def testTodoPass(self):
-        assert 2 + 2 == 4
+        pass
 
 
 if __name__ == '__main__':

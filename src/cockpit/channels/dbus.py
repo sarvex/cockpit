@@ -386,7 +386,7 @@ class DBusChannel(Channel):
                         if interface_name is None or name == interface_name:
                             mm = await self.cache.get_interface_if_new(name, self.bus, self.name, path)
                             if mm:
-                                meta.update({name: mm})
+                                meta[name] = mm
                             notify_update(notify, path, name, props)
                     self.send_message(meta=meta)
                     self.send_message(notify=notify)

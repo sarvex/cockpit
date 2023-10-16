@@ -96,7 +96,7 @@ def createUser(
         browser.set_input_text('#accounts-create-user-home-dir', custom_home_dir)
     else:
         default_home_dir = getUserAddDetails(machine)["HOME"]
-        expected_home_dir = default_home_dir + "/" + user_name
+        expected_home_dir = f"{default_home_dir}/{user_name}"
         browser.wait_visible(f"#accounts-create-user-home-dir[value='{expected_home_dir}']")
 
     if custom_shell:
@@ -214,7 +214,7 @@ class TestAccounts(testlib.MachineCase):
         b.wait_visible("#accounts-create-password-meter.success")
 
         # wrong password confirmation
-        b.set_input_text('#accounts-create-password-pw2', good_password + 'b')
+        b.set_input_text('#accounts-create-password-pw2', f'{good_password}b')
         b.click('#accounts-create-dialog button.apply')
         b.wait_in_text("#accounts-create-dialog .pf-v5-c-form__helper-text .pf-m-error", "The passwords do not match")
         b.wait_not_present('#accounts-create-dialog button.pf-m-warning')
@@ -506,9 +506,11 @@ class TestAccounts(testlib.MachineCase):
         b.wait_visible("#account-locked:checked")
         b.set_checked('#account-locked', val=False)
         b.wait(lambda: not is_locked())
-        b.wait_not_present(admin_role_sel + f" .pf-v5-c-label:contains(:{m.get_admin_group()})")
+        b.wait_not_present(
+            f"{admin_role_sel} .pf-v5-c-label:contains(:{m.get_admin_group()})"
+        )
         b.click("#account-groups")
-        b.click(admin_role_sel + f" li:contains({m.get_admin_group()}) > button")
+        b.click(f"{admin_role_sel} li:contains({m.get_admin_group()}) > button")
         b.wait(is_admin)
         b.wait_not_present("#account-groups-helper")
 
@@ -526,23 +528,31 @@ class TestAccounts(testlib.MachineCase):
         # Use [x] button on the group label to remove the account from group
         b.go("#/jussi")
         b.wait_text("#account-user-name", "jussi")
-        b.wait_visible(admin_role_sel + f" .pf-v5-c-label:contains({m.get_admin_group()})")
+        b.wait_visible(
+            f"{admin_role_sel} .pf-v5-c-label:contains({m.get_admin_group()})"
+        )
         b.wait_not_present("#account-groups-helper")
         b.click(f".pf-v5-c-label-group__list .pf-v5-c-label__content:contains({m.get_admin_group()}) + span > button[aria-label='Close {m.get_admin_group()}']")
         b.wait(lambda: not is_admin())
-        b.wait_not_present(admin_role_sel + f" .pf-v5-c-label:contains({m.get_admin_group()})")
+        b.wait_not_present(
+            f"{admin_role_sel} .pf-v5-c-label:contains({m.get_admin_group()})"
+        )
         if not m.ostree_image:  # User is not shown as logged in when logged in through Cockpit
             b.wait_visible("#account-groups-helper")
         m.execute(f"/usr/bin/gpasswd -a jussi {m.get_admin_group()}")
         with b.wait_timeout(20):
-            b.wait_visible(admin_role_sel + f" .pf-v5-c-label:contains({m.get_admin_group()})")
+            b.wait_visible(
+                f"{admin_role_sel} .pf-v5-c-label:contains({m.get_admin_group()})"
+            )
 
         # Cannot lock the current account
         b.wait_visible("#account-locked[disabled]")
 
         b.go("#/admin")
         b.wait_text("#account-user-name", "admin")
-        b.wait_visible(admin_role_sel + f" .pf-v5-c-label:contains({m.get_admin_group()})")
+        b.wait_visible(
+            f"{admin_role_sel} .pf-v5-c-label:contains({m.get_admin_group()})"
+        )
         b.wait_not_present("#account-groups-helper")
         b.logout()
         b.login_and_go("/users")
@@ -562,8 +572,8 @@ class TestAccounts(testlib.MachineCase):
         b.wait_visible('#account-set-password-dialog button.pf-m-warning')
 
         # password mismatch
-        b.set_input_text("#account-set-password-pw1", good_password + 'a')
-        b.set_input_text("#account-set-password-pw2", good_password + 'b')
+        b.set_input_text("#account-set-password-pw1", f'{good_password}a')
+        b.set_input_text("#account-set-password-pw2", f'{good_password}b')
         b.click('#account-set-password-dialog button.apply')
         b.wait_in_text("#account-set-password-dialog .pf-v5-c-form__helper-text .pf-m-error", "The passwords do not match")
         b.wait_not_present('#account-set-password-dialog button.pf-m-warning')
@@ -932,7 +942,7 @@ class TestAccounts(testlib.MachineCase):
 
         # test this on root and a normal user account
         for user in ["anton", "root"]:
-            b.go("#/" + user)
+            b.go(f"#/{user}")
             b.wait_text("#account-user-name", user)
             b.wait_visible('#account-set-password:enabled')
             b.click('#account-set-password')

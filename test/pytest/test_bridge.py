@@ -396,7 +396,7 @@ async def test_internal_metrics(transport):
     # cpu.core.user instances should be the same as meta sent instances
     assert instances == len(data[0][0])
     # all instances should be False, as this is a rate
-    assert not all(d for d in data[0][0])
+    assert not all(data[0][0])
     # memory.used should be an integer
     assert isinstance(data[0][1], int)
 
@@ -482,10 +482,7 @@ async def test_channel(bridge, transport, channeltype, tmp_path):
     elif payload == 'http-stream2':
         args = {'method': 'GET', 'path': '/bzzt', 'unix': srv}
     elif payload == 'stream':
-        if 'spawn' in args:
-            args = {'spawn': ['cat']}
-        else:
-            args = {'unix': srv}
+        args = {'spawn': ['cat']} if 'spawn' in args else {'unix': srv}
     elif payload == 'metrics1':
         args['metrics'] = [{'name': 'memory.free'}]
     elif payload == 'dbus-json3':

@@ -55,11 +55,10 @@ class StorageHelpers:
         # sanity test: should not yet be loaded
         self.machine.execute("test ! -e /sys/module/scsi_debug")
         self.machine.execute(f"modprobe scsi_debug dev_size_mb={size}")
-        dev = self.machine.execute('while true; do O=$(ls /sys/bus/pseudo/drivers/scsi_debug/adapter*/host*/target*/*:*/block 2>/dev/null || true); '
-                                   '[ -n "$O" ] && break || sleep 0.1; done; echo "/dev/$O"').strip()
-        # don't use addCleanup() here, this is often busy and needs to be cleaned up late; done in MachineCase.nonDestructiveSetup()
-
-        return dev
+        return self.machine.execute(
+            'while true; do O=$(ls /sys/bus/pseudo/drivers/scsi_debug/adapter*/host*/target*/*:*/block 2>/dev/null || true); '
+            '[ -n "$O" ] && break || sleep 0.1; done; echo "/dev/$O"'
+        ).strip()
 
     def add_loopback_disk(self, size=50, name=None):
         """Add per-test loopback disk
@@ -87,7 +86,7 @@ class StorageHelpers:
         # machine, they might come back for unknown reasons, in a
         # non-functional state. Running partprobe will get rid of
         # them.
-        self.machine.execute("partprobe '%s'" % dev)
+        self.machine.execute(f"partprobe '{dev}'")
         # right after unmounting the device is often still busy, so retry a few times
         self.addCleanup(self.machine.execute, "umount {0} || true; rm $(losetup -n -O BACK-FILE -l {0}); until losetup -d {0}; do sleep 1; done".format(dev), timeout=10)
         return dev
@@ -114,12 +113,12 @@ class StorageHelpers:
         tbody = self.content_row_tbody(index)
         b.wait_visible(tbody)
         if "pf-m-expanded" not in (b.attr(tbody, "class") or ""):
-            b.click(tbody + " tr td.pf-v5-c-table__toggle button")
-            b.wait_visible(tbody + ".pf-m-expanded")
+            b.click(f"{tbody} tr td.pf-v5-c-table__toggle button")
+            b.wait_visible(f"{tbody}.pf-m-expanded")
 
     def content_row_action(self, index, title, isExpandable=True):
         if isExpandable:
-            btn = self.content_row_tbody(index) + f" tr:first-child td button:contains({title})"
+            btn = f"{self.content_row_tbody(index)} tr:first-child td button:contains({title})"
         else:
             btn = "#detail-content > .pf-v5-c-card > div > table > :nth-child(%d)" % index + f" td button:contains({title})"
         self.browser.click(btn)
@@ -137,11 +136,11 @@ class StorageHelpers:
 
     def content_dropdown_action(self, index, title, isExpandable=True):
         if isExpandable:
-            dropdown = self.content_row_tbody(index) + " tr td:last-child .pf-v5-c-dropdown"
+            dropdown = f"{self.content_row_tbody(index)} tr td:last-child .pf-v5-c-dropdown"
         else:
             dropdown = "#detail-content > .pf-v5-c-card > div > table > :nth-child(%d)" % index + " td:last-child .pf-v5-c-dropdown"
-        self.browser.click(dropdown + " button.pf-v5-c-dropdown__toggle")
-        self.browser.click(dropdown + f" a:contains('{title}')")
+        self.browser.click(f"{dropdown} button.pf-v5-c-dropdown__toggle")
+        self.browser.click(f"{dropdown} a:contains('{title}')")
 
     def content_tab_expand(self, row_index, tab_index):
         tab_btn = self.content_row_tbody(row_index) + " .pf-v5-c-tabs ul li:nth-child(%d) button" % tab_index
@@ -167,20 +166,22 @@ class StorageHelpers:
 
     def content_tab_action(self, row_index, tab_index, title):
         def func(tab):
-            btn = tab + f" button:contains({title})"
+            btn = f"{tab} button:contains({title})"
             self.browser.wait_attr(btn, "disabled", None)
             self.browser.click(btn)
+
         self.retry_in_content_tab(row_index, tab_index, func)
 
     def wait_content_tab_action_disabled(self, row_index, tab_index, title):
         def func(tab):
-            btn = tab + f" button:disabled:contains({title})"
+            btn = f"{tab} button:disabled:contains({title})"
             self.browser.wait_visible(btn)
+
         self.retry_in_content_tab(row_index, tab_index, func)
 
     def content_tab_wait_in_info(self, row_index, tab_index, title, val=None, alternate_val=None, cond=None):
         def func(tab):
-            cell = tab + f" dt:contains({title}) + *"
+            cell = f"{tab} dt:contains({title}) + *"
             if val is not None and val in self.browser.text(cell):
                 return True
             if alternate_val is not None and alternate_val in self.browser.text(cell):
@@ -188,17 +189,19 @@ class StorageHelpers:
             if cond is not None and cond(cell):
                 return True
             raise Error("Info not found")
+
         self.retry_in_content_tab(row_index, tab_index, func)
 
     def content_tab_info_label(self, row_index, tab_index, title):
         tab = self.content_tab_expand(row_index, tab_index)
-        return tab + f" dt:contains({title})"
+        return f"{tab} dt:contains({title})"
 
     def content_tab_info_action(self, row_index, tab_index, title):
         def func(tab):
-            label = tab + f" dt:contains({title})"
-            link = label + " + dd button.pf-m-link"
+            label = f"{tab} dt:contains({title})"
+            link = f"{label} + dd button.pf-m-link"
             self.browser.click(link)
+
         self.retry_in_content_tab(row_index, tab_index, func)
 
     # Dialogs
@@ -216,10 +219,12 @@ class StorageHelpers:
         sel = self.dialog_field(field)
         ftype = self.browser.attr(sel, "data-field-type")
         if ftype == "text-input-checked":
-            if self.browser.is_present(sel + " input[type=checkbox]:not(:checked)"):
+            if self.browser.is_present(
+                f"{sel} input[type=checkbox]:not(:checked)"
+            ):
                 return False
             else:
-                return self.browser.val(sel + " input[type=text]")
+                return self.browser.val(f"{sel} input[type=text]")
         elif ftype == "select":
             return self.browser.attr(sel, "data-value")
         else:
@@ -234,24 +239,26 @@ class StorageHelpers:
             for label in val:
                 self.browser.set_checked(f'{sel} :contains("{label}") input', val)
         elif ftype == "size-slider":
-            self.browser.set_val(sel + " .size-unit select", "1000000")
-            self.browser.set_input_text(sel + " .size-text input", str(val))
+            self.browser.set_val(f"{sel} .size-unit select", "1000000")
+            self.browser.set_input_text(f"{sel} .size-text input", str(val))
         elif ftype == "select":
-            self.browser._wait_present(sel + f" select option[value='{val}']:not([disabled])")
-            self.browser.set_val(sel + " select", val)
+            self.browser._wait_present(
+                f"{sel} select option[value='{val}']:not([disabled])"
+            )
+            self.browser.set_val(f"{sel} select", val)
         elif ftype == "select-radio":
-            self.browser.click(sel + f" input[data-data='{val}']")
+            self.browser.click(f"{sel} input[data-data='{val}']")
         elif ftype == "text-input":
             self.browser.set_input_text(sel, val)
         elif ftype == "text-input-checked":
             if not val:
-                self.browser.set_checked(sel + " input[type=checkbox]", val=False)
+                self.browser.set_checked(f"{sel} input[type=checkbox]", val=False)
             else:
-                self.browser.set_checked(sel + " input[type=checkbox]", val=True)
-                self.browser.set_input_text(sel + " [type=text]", val)
+                self.browser.set_checked(f"{sel} input[type=checkbox]", val=True)
+                self.browser.set_input_text(f"{sel} [type=text]", val)
         elif ftype == "combobox":
-            self.browser.click(sel + " button.pf-v5-c-select__toggle-button")
-            self.browser.click(sel + f" .pf-v5-c-select__menu li:contains('{val}') button")
+            self.browser.click(f"{sel} button.pf-v5-c-select__toggle-button")
+            self.browser.click(f"{sel} .pf-v5-c-select__menu li:contains('{val}') button")
         else:
             self.browser.set_val(sel, val)
 
@@ -274,8 +281,8 @@ class StorageHelpers:
         sel = self.dialog_field(field)
         ftype = self.browser.attr(sel, "data-field-type")
         if ftype == "size-slider":
-            self.browser.wait_val(sel + " .size-unit select", unit)
-            self.browser.wait_val(sel + " .size-text input", str(val))
+            self.browser.wait_val(f"{sel} .size-unit select", unit)
+            self.browser.wait_val(f"{sel} .size-text input", str(val))
         elif ftype == "select":
             self.browser.wait_attr(sel, "data-value", val)
         else:
@@ -306,10 +313,7 @@ class StorageHelpers:
             self.browser.wait_not_present('#dialog')
 
     def dialog_check(self, expect):
-        for f in expect:
-            if not self.dialog_val(f) == expect[f]:
-                return False
-        return True
+        return all(self.dialog_val(f) == expect[f] for f in expect)
 
     def dialog_set_vals(self, values):
         # Sometimes a certain field needs to be set before other
@@ -363,14 +367,12 @@ class StorageHelpers:
             self.dialog_wait_open()
 
         def check():
-            if callable(expect):
-                return expect()
-            else:
-                return self.dialog_check(expect)
+            return expect() if callable(expect) else self.dialog_check(expect)
 
         def teardown():
             self.dialog_cancel()
             self.dialog_wait_close()
+
         self.retry(setup, check, teardown)
 
     def dialog_apply_with_retry(self, expected_errors=None):
@@ -438,8 +440,7 @@ class StorageHelpers:
                     for entry in crypto_iface["ChildConfiguration"]:
                         if entry[0] == tab:
                             if field in entry[1]:
-                                print("%s/child/%s/%s = %s" % (path, tab, field,
-                                                               from_udisks_ascii(entry[1][field])))
+                                print(f"{path}/child/{tab}/{field} = {from_udisks_ascii(entry[1][field])}")
                                 return from_udisks_ascii(entry[1][field])
         return ""
 
@@ -455,8 +456,7 @@ class StorageHelpers:
                     for entry in iface["ChildConfiguration"]:
                         if entry[0] == tab:
                             if field in entry[1]:
-                                print("%s/child/%s/%s = %s" % (path, tab, field,
-                                                               from_udisks_ascii(entry[1][field])))
+                                print(f"{path}/child/{tab}/{field} = {from_udisks_ascii(entry[1][field])}")
                                 return from_udisks_ascii(entry[1][field])
         return ""
 
@@ -614,18 +614,13 @@ class StorageCase(MachineCase, StorageHelpers):
         super().setUp()
 
         ver = self.machine.execute("busctl --system get-property org.freedesktop.UDisks2 /org/freedesktop/UDisks2/Manager org.freedesktop.UDisks2.Manager Version || true")
-        m = re.match('s "(.*)"', ver)
-        if m:
+        if m := re.match('s "(.*)"', ver):
             self.storaged_version = list(map(int, m.group(1).split(".")))
         else:
             self.storaged_version = [0]
 
         crypto_types = self.machine.execute("busctl --system get-property org.freedesktop.UDisks2 /org/freedesktop/UDisks2/Manager org.freedesktop.UDisks2.Manager SupportedEncryptionTypes || true")
-        if "luks2" in crypto_types:
-            self.default_crypto_type = "luks2"
-        else:
-            self.default_crypto_type = "luks1"
-
+        self.default_crypto_type = "luks2" if "luks2" in crypto_types else "luks1"
         if self.image.startswith("rhel-8") or self.image.startswith("centos-8"):
             # HACK: missing /etc/crypttab file upsets udisks: https://github.com/storaged-project/udisks/pull/835
             self.machine.write("/etc/crypttab", "")

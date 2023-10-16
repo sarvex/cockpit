@@ -189,8 +189,13 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
                 stop_message = "Succeeded."
 
             with b.wait_timeout(30):
-                wait_log_lines([["systemd", "slow10.service: " + stop_message, ""], ["sh", "SLOW", "10"],
-                                ["systemd", "Started.*Slowly log 10 identical lines.", ""]])
+                wait_log_lines(
+                    [
+                        ["systemd", f"slow10.service: {stop_message}", ""],
+                        ["sh", "SLOW", "10"],
+                        ["systemd", "Started.*Slowly log 10 identical lines.", ""],
+                    ]
+                )
 
         def wait_log_present(message):
             b.wait_visible(f"#journal-box .cockpit-logline .cockpit-log-message:contains('{message}')")
@@ -472,8 +477,8 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
         bin_data_short = {"MSG": "Hello \01 World", "BIN": "a\01b\02c\03"}
 
         def wait_field(name, value):
-            row_sel = "dt:contains('" + name + "')"
-            b.wait_visible(row_sel + "+ dd:contains('" + value + "')")
+            row_sel = f"dt:contains('{name}')"
+            b.wait_visible(f"{row_sel}+ dd:contains('{value}')")
 
         def check_entry(msg, bin_msg):
             b.click(f"#journal-box .cockpit-logline .cockpit-log-message:contains('{msg}')")
@@ -484,10 +489,10 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
             b.wait_visible(f"#journal-box .cockpit-logline .cockpit-log-message:contains('{msg}')")
 
         m.execute(fr"printf 'MESSAGE={bin_data_short['MSG']}\nPRIORITY=3\nFOO=bar\nBIN={bin_data_short['BIN']}\n' | logger --journald")
-        self.login_and_go("/system/logs#/?tag=logger&since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?tag=logger&since=@{self.test_start_time}")
         check_entry(bin_data_short["MSG"], "[binary data]")  # Test when binary msg is <= 1000 bytes
         m.execute(fr"printf 'MESSAGE={bin_data_long['MSG']}\nPRIORITY=3\nFOO=bar\nBIN={bin_data_long['BIN']}\n' | logger --journald")
-        b.go("/system/logs#/?tag=logger&since=@" + self.test_start_time)
+        b.go(f"/system/logs#/?tag=logger&since=@{self.test_start_time}")
         check_entry("[binary data]", "[binary data]")  # Test when binary msg is > 1000 bytes
 
     @testlib.nondestructive
@@ -496,7 +501,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
         m = self.machine
 
         m.execute(r"printf 'PRIORITY=3\nFOO=bar\n' | logger --journald")
-        self.login_and_go("/system/logs#/?tag=logger&since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?tag=logger&since=@{self.test_start_time}")
         b.click("#journal-box .cockpit-logline .cockpit-log-message:contains('[no data]')")
         b.wait_text(".pf-v5-c-card__title", "[no data]")
 
@@ -510,7 +515,9 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
         m.execute("logger -p user.warn --tag check-journal WARNING_MESSAGE")
         m.execute("logger -p user.emerg --tag check-journal EMERGENCY_MESSAGE")
 
-        self.login_and_go("/system/logs#/?tag=check-journal&since=@" + self.test_start_time)
+        self.login_and_go(
+            f"/system/logs#/?tag=check-journal&since=@{self.test_start_time}"
+        )
 
         journal_line_selector = "#journal-box .cockpit-logline:has(span:contains({0}))"
 
@@ -539,7 +546,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
         self.addCleanup(m.execute, "rm -rf /var/spool/abrt/*")
         self.crash()
 
-        self.login_and_go("/system/logs#/?since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?since=@{self.test_start_time}")
 
         self.browser.select_PF4("#journal-prio-menu", "Critical and above")
         b.wait_visible(sleep_crash_list_sel)
@@ -551,8 +558,8 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
         b.click(sleep_crash_list_sel)
 
         def wait_field(name, value):
-            row_sel = "dt:contains('" + name + "')"
-            b.wait_visible(row_sel + "+ dd:contains('" + value + "')")
+            row_sel = f"dt:contains('{name}')"
+            b.wait_visible(f"{row_sel}+ dd:contains('{value}')")
 
         wait_field("SYSLOG_IDENTIFIER", "abrt-notification")
 
@@ -578,7 +585,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
 
         self.crash()
 
-        self.login_and_go("/system/logs#/?since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?since=@{self.test_start_time}")
         b.click(sleep_crash_list_sel)
 
         b.wait_in_text("#entry-heading", "sleep")
@@ -628,7 +635,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
 
         self.crash()
 
-        self.login_and_go("/system/logs#/?since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?since=@{self.test_start_time}")
         b.click(sleep_crash_list_sel)
         b.click("#abrt-reporting .pf-v5-l-split:first-child button:contains('Report')")
         b.wait_visible("#abrt-reporting .pf-v5-l-split:first-child a[href$='/reports/bthash/123deadbeef']")
@@ -684,7 +691,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
 
         self.crash()
 
-        self.login_and_go("/system/logs#/?since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?since=@{self.test_start_time}")
 
         b.click(sleep_crash_list_sel)
         b.click("#abrt-reporting .pf-v5-l-split:contains('Report to Cockpit') button:contains('Report')")
@@ -715,7 +722,7 @@ ExecStart=/bin/sh -c 'sleep 5; for s in $(seq 10); do echo SLOW; sleep 0.1; done
 
         self.crash()
 
-        self.login_and_go("/system/logs#/?since=@" + self.test_start_time)
+        self.login_and_go(f"/system/logs#/?since=@{self.test_start_time}")
         b.click(sleep_crash_list_sel)
         b.click("#abrt-reporting .pf-v5-l-split:first-child button:contains('Report')")
         b.wait_visible("#abrt-reporting .pf-v5-l-split:first-child a[href$='/reports/bthash/123deadbeef']")

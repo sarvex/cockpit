@@ -280,11 +280,16 @@ class TestStorageLvm2(storagelib.StorageCase):
         b.wait_in_text("#detail-sidebar", "Partition of Linux scsi_debug")
 
         # Add the unused space of disk2
-        self.dialog_with_retry(trigger=lambda: b.click('#detail-sidebar .pf-v5-c-card__header button'),
-                               expect=lambda: self.dialog_is_present(
-                                   'disks', "unpartitioned space on " + disk2),
-                               values={"disks": {disk2: True}})
-        b.wait_in_text("#detail-sidebar", "Partition of " + disk2)
+        self.dialog_with_retry(
+            trigger=lambda: b.click(
+                '#detail-sidebar .pf-v5-c-card__header button'
+            ),
+            expect=lambda: self.dialog_is_present(
+                'disks', f"unpartitioned space on {disk2}"
+            ),
+            values={"disks": {disk2: True}},
+        )
+        b.wait_in_text("#detail-sidebar", f"Partition of {disk2}")
 
     def testSnapshots(self):
         m = self.machine

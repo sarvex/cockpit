@@ -151,7 +151,7 @@ class AuthorizeResponder(ferny.InteractionResponder):
             # Let's avoid all of that by just showing nothing.
             return None
 
-        challenge = 'X-Conversation - ' + base64.b64encode(prompt.encode()).decode()
+        challenge = f'X-Conversation - {base64.b64encode(prompt.encode()).decode()}'
         response = await self.router.request_authorization(challenge,
                                                            messages=messages,
                                                            prompt=prompt,
@@ -213,11 +213,7 @@ class SshPeer(Peer):
             )
             host, _, port = self.destination.rpartition(':')
             # catch cases like `host:123` but not cases like `[2001:abcd::1]
-            if port.isdigit():
-                host_args = ['-p', port, host]
-            else:
-                host_args = [self.destination]
-
+            host_args = ['-p', port, host] if port.isdigit() else [self.destination]
             cmd = ('ssh', *host_args, shlex.join(cmd))
 
         # Running in flatpak?  Wrap command with flatpak-spawn --host

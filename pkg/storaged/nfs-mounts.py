@@ -76,24 +76,30 @@ def modify_tab(name, modify):
             new_lines.append(line)
         else:
             fields = list(map(field_unescape, re.split("[ \t]+", sline)))
-            if len(fields) > 0 and ":" in fields[0]:
-                new_fields = modify(fields)
-                if new_fields:
-                    if new_fields == fields:
-                        new_lines.append(line)
-                    else:
-                        new_lines.append(" ".join(map(field_escape, new_fields)))
-            else:
+            if (
+                fields
+                and ":" in fields[0]
+                and (new_fields := modify(fields))
+                and new_fields == fields
+                or not fields
+                or ":" not in fields[0]
+            ):
                 new_lines.append(line)
-    new_fields = modify(None)
-    if new_fields:
+            elif (
+                fields
+                and ":" in fields[0]
+                and (new_fields := modify(fields))
+                and new_fields != fields
+            ):
+                new_lines.append(" ".join(map(field_escape, new_fields)))
+    if new_fields := modify(None):
         new_lines.append(" ".join(map(field_escape, new_fields)))
 
-    with open(name + ".tmp", "w") as f:
+    with open(f"{name}.tmp", "w") as f:
         f.write("\n".join(new_lines) + "\n")
         f.flush()
         os.fsync(f.fileno())
-    os.rename(name + ".tmp", name)
+    os.rename(f"{name}.tmp", name)
 
 
 fstab = []
@@ -116,10 +122,14 @@ def process_mtab():
 
 
 def find_in_tab(tab_by_remote, fields):
-    for t in tab_by_remote.get(fields[0], []):
-        if t[0] == fields[0] and t[1] == fields[1]:
-            return t
-    return None
+    return next(
+        (
+            t
+            for t in tab_by_remote.get(fields[0], [])
+            if t[0] == fields[0] and t[1] == fields[1]
+        ),
+        None,
+    )
 
 
 def report():
@@ -127,9 +137,11 @@ def report():
     for f in fstab:
         m = find_in_tab(mtab_by_remote, f)
         data.append({"fstab": True, "fields": f, "mounted": m is not None})
-    for m in mtab:
-        if not find_in_tab(fstab_by_remote, m):
-            data.append({"fstab": False, "fields": m, "mounted": True})
+    data.extend(
+        {"fstab": False, "fields": m, "mounted": True}
+        for m in mtab
+        if not find_in_tab(fstab_by_remote, m)
+    )
     sys.stdout.write(json.dumps(data) + "\n")
     sys.stdout.flush()
 
@@ -180,9 +192,8 @@ def update(entry, new_fields):
             except subprocess.CalledProcessError:
                 pass
             mount({"fields": new_fields})
-    else:
-        if old_fields[1] != new_fields[1]:
-            rmdir_maybe(old_fields[1])
+    elif old_fields[1] != new_fields[1]:
+        rmdir_maybe(old_fields[1])
     modify_tab("/etc/fstab", lambda fields: new_fields if fields == old_fields else fields)
 
 
@@ -211,10 +222,9 @@ def mount(entry):
 
 
 def remount(fields):
-    subprocess.check_call(["mount",
-                           "-o", "remount," + fields[3],
-                           fields[0],
-                           fields[1]])
+    subprocess.check_call(
+        ["mount", "-o", f"remount,{fields[3]}", fields[0], fields[1]]
+    )
 
 
 def unmount(entry):

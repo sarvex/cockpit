@@ -97,8 +97,7 @@ class CPUSampler(Sampler):
                 if not line.startswith('cpu'):
                     continue
                 cpu, user, nice, system, _idle, iowait = line.split()[:6]
-                core = cpu[3:] or None
-                if core:
+                if core := cpu[3:] or None:
                     prefix = 'cpu.core'
                     samples[f'{prefix}.nice'][core] = int(nice) * MS_PER_JIFFY
                     samples[f'{prefix}.user'][core] = int(user) * MS_PER_JIFFY
@@ -150,13 +149,8 @@ class CPUTemperatureSampler(Sampler):
         if name == 'atk0110':
             # only sample 'CPU Temperature' in atk0110
             predicate = (lambda label: label == 'CPU Temperature')
-        elif name == 'cpu_thermal':
+        elif name in ['cpu_thermal', 'coretemp', 'k8temp', 'k10temp']:
             # labels are not used on ARM
-            predicate = None
-        elif name == 'coretemp':
-            # accept all labels on Intel
-            predicate = None
-        elif name in ['k8temp', 'k10temp']:
             predicate = None
         else:
             # Not a CPU sensor
@@ -282,8 +276,9 @@ class CGroupSampler(Sampler):
                 samples['cgroup.memory.sw-usage'][cgroup] = read_int_file(rootfd, 'memory.swap.current', 0)
                 samples['cgroup.memory.sw-limit'][cgroup] = read_int_file(rootfd, 'memory.swap.max')
                 samples['cgroup.cpu.shares'][cgroup] = read_int_file(rootfd, 'cpu.weight')
-                usage_usec = read_int_file(rootfd, 'cpu.stat', 0, key=b'usage_usec')
-                if usage_usec:
+                if usage_usec := read_int_file(
+                    rootfd, 'cpu.stat', 0, key=b'usage_usec'
+                ):
                     samples['cgroup.cpu.usage'][cgroup] = usage_usec / 1000
         else:
             memory_path = '/sys/fs/cgroup/memory/'
@@ -306,8 +301,7 @@ class CGroupSampler(Sampler):
                     continue
 
                 samples['cgroup.cpu.shares'][cgroup] = read_int_file(rootfd, 'cpu.shares')
-                usage_nsec = read_int_file(rootfd, 'cpuacct.usage')
-                if usage_nsec:
+                if usage_nsec := read_int_file(rootfd, 'cpuacct.usage'):
                     samples['cgroup.cpu.usage'][cgroup] = usage_nsec / 1000000
 
 
@@ -331,8 +325,7 @@ class CGroupDiskIO(Sampler):
         with Handle.open('io', os.O_RDONLY, dir_fd=fd) as io_fd:
             data = os.read(io_fd, 4096)
 
-            match = re.search(CGroupDiskIO.IO_RE, data)
-            if match:
+            if match := re.search(CGroupDiskIO.IO_RE, data):
                 proc_read = int(match.group('read'))
                 proc_write = int(match.group('write'))
 

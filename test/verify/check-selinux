@@ -123,21 +123,25 @@ class TestSelinux(testlib.MachineCase):
             b.wait_visible(row_selector)
 
         # expand it to see details
-        toggle_selector = row_selector + " .pf-v5-c-table__toggle button"
+        toggle_selector = f"{row_selector} .pf-v5-c-table__toggle button"
         b.click(toggle_selector)
 
         # this should have two alerts, but there seems to be a known issue that some messages are delayed
         # b.wait_in_text(row_selector, "2 occurrences")
 
-        panel_selector = row_selector + " tr.pf-m-expanded .ct-listing-panel-body"
+        panel_selector = f"{row_selector} tr.pf-m-expanded .ct-listing-panel-body"
 
         # manual label change solution is present
-        relabel_selector = panel_selector + " .selinux-details:contains('public_content_t')"
+        relabel_selector = (
+            f"{panel_selector} .selinux-details:contains('public_content_t')"
+        )
         b.wait_in_text(relabel_selector, "You need to change the label on public_html to public_content_t")
         b.wait_in_text(relabel_selector, "Unable to apply this solution automatically")
 
         # an automatic solution is present for sebool
-        sebool_selector1 = panel_selector + " .selinux-details:contains('httpd_enable_homedirs')"
+        sebool_selector1 = (
+            f"{panel_selector} .selinux-details:contains('httpd_enable_homedirs')"
+        )
         b.wait_in_text(sebool_selector1, "by enabling the 'httpd_enable_homedirs' boolean.")
 
         # sabotage the solution command to test failure alerts
@@ -148,7 +152,7 @@ class TestSelinux(testlib.MachineCase):
         b.wait_in_text(f"{sebool_selector1} .pf-v5-c-alert", "setsebool: Permission denied")
 
         # we can't re-attempt the solution, dismiss it
-        b.click(row_selector + " input[type=checkbox]")
+        b.click(f"{row_selector} input[type=checkbox]")
         b.click(dismiss_sel)
         b.wait_not_present(row_selector)
         # unbreak sebool, and trigger the error again
@@ -159,19 +163,27 @@ class TestSelinux(testlib.MachineCase):
         b.click(toggle_selector)
 
         # applying solution works now
-        b.click(sebool_selector1 + " button" + self.default_btn_class)
-        b.wait_in_text(sebool_selector1 + " .pf-v5-c-alert__title", "Solution applied successfully")
+        b.click(f"{sebool_selector1} button{self.default_btn_class}")
+        b.wait_in_text(
+            f"{sebool_selector1} .pf-v5-c-alert__title",
+            "Solution applied successfully",
+        )
         self.assertIn("-> on", m.execute("getsebool httpd_enable_homedirs"))
         # system modifications automatically update for this new sebool
         # was "enable homedir", is now "read home directory"
         b.wait_text_matches(".modifications-table", "Allow httpd to .* home ?dir")
 
         # Second sebool solution can still be applied separately
-        sebool_selector2 = panel_selector + " .selinux-details:contains('httpd_unified')"
-        b.wait_text(sebool_selector2 + " button" + self.default_btn_class, "Apply this solution")
+        sebool_selector2 = (
+            f"{panel_selector} .selinux-details:contains('httpd_unified')"
+        )
+        b.wait_text(
+            f"{sebool_selector2} button{self.default_btn_class}",
+            "Apply this solution",
+        )
 
         # now dismiss the alert
-        b.click(row_selector + " input[type=checkbox]")
+        b.click(f"{row_selector} input[type=checkbox]")
         b.assert_pixels("#app", "selinux", ignore=["table .ct-listing-panel-actions"])
         b.click(dismiss_sel)
         b.wait_not_present(row_selector)
@@ -188,12 +200,15 @@ class TestSelinux(testlib.MachineCase):
             b.wait_visible(row_selector)
 
         # expand it to see details
-        toggle_selector = row_selector + " .pf-v5-c-table__toggle button"
+        toggle_selector = f"{row_selector} .pf-v5-c-table__toggle button"
         b.click(toggle_selector)
 
         try:
             # a solution is present
-            b.wait_in_text(row_selector + " tr.pf-m-expanded .ct-listing-panel-body", "you can run restorecon")
+            b.wait_in_text(
+                f"{row_selector} tr.pf-m-expanded .ct-listing-panel-body",
+                "you can run restorecon",
+            )
 
             # and it can be applied
             btn_sel = f".selinux-details:contains('you can run restorecon') button{self.default_btn_class}"
@@ -203,7 +218,10 @@ class TestSelinux(testlib.MachineCase):
             b.wait_not_present(btn_sel)
 
             # the fix should be applied
-            b.wait_in_text(row_selector + " .pf-v5-c-alert__title", "Solution applied successfully")
+            b.wait_in_text(
+                f"{row_selector} .pf-v5-c-alert__title",
+                "Solution applied successfully",
+            )
 
             # and the button should not come back
             b.wait_not_present(btn_sel)
@@ -215,7 +233,7 @@ class TestSelinux(testlib.MachineCase):
             print("====================")
             raise
 
-        b.click(row_selector + " input[type=checkbox]")
+        b.click(f"{row_selector} input[type=checkbox]")
         b.click(dismiss_sel)
         b.wait_not_present(row_selector)
 

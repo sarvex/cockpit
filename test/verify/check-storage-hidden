@@ -78,7 +78,7 @@ class TestStorageHiddenLuks(storagelib.StorageCase):
         self.confirm()
         b.wait_visible("#storage")
         self.assertEqual(m.execute(f"grep {mount_point_1} /etc/fstab || true"), "")
-        self.assertEqual(m.execute(f"grep {'my-crypto-tag'} /etc/crypttab || true"), "")
+        self.assertEqual(m.execute('grep my-crypto-tag /etc/crypttab || true'), "")
 
 
 @testlib.nondestructive
@@ -131,13 +131,12 @@ class TestStorageHidden(storagelib.StorageCase):
 
         self.login_and_go("/storage")
 
-        # We expect there to be at least one loop back device mounted
-        # somewhere below /snap.
-        snap_loops = []
         devices = storagelib.json.loads(m.execute("lsblk --json --list --output NAME,TYPE,MOUNTPOINT"))
-        for d in devices["blockdevices"]:
-            if d["type"] == "loop" and d["mountpoint"].startswith("/snap/"):
-                snap_loops.append(d["name"])
+        snap_loops = [
+            d["name"]
+            for d in devices["blockdevices"]
+            if d["type"] == "loop" and d["mountpoint"].startswith("/snap/")
+        ]
         self.assertGreater(len(snap_loops), 0)
 
         # Make one more loopback device that we expect to see in the UI.

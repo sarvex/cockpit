@@ -139,7 +139,7 @@ def main():
         global run
         run = logged(run)
 
-    with SourceDirectory() as source_dir, ResultsDirectory() as results_dir:
+    with (SourceDirectory() as source_dir, ResultsDirectory() as results_dir):
         options = {
             '--rm',
             '--log-driver=none',
@@ -170,7 +170,11 @@ def main():
         elif args.script:
             command = ['sh', '-c', args.script]
         elif args.make:
-            command = ['sh', '-c', '/source/autogen.sh; exec make -j$(nproc) ' + shlex.quote(args.make)]
+            command = [
+                'sh',
+                '-c',
+                f'/source/autogen.sh; exec make -j$(nproc) {shlex.quote(args.make)}',
+            ]
         elif args.make_dist:
             command = ['sh', '-c', 'cp -t /results $(/source/tools/make-dist)']
         else:

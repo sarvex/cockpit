@@ -25,10 +25,12 @@ import testlib
 
 
 def console_screenshot(machine, name):
-    subprocess.run("virsh -c qemu:///session screenshot %s '%s'" % (str(machine._domain.ID()), name),
-                   shell=True)
+    subprocess.run(
+        f"virsh -c qemu:///session screenshot {str(machine._domain.ID())} '{name}'",
+        shell=True,
+    )
     testlib.attach(name, move=True)
-    print("Wrote screenshot to " + name)
+    print(f"Wrote screenshot to {name}")
 
 
 @testlib.nondestructive
@@ -80,8 +82,8 @@ class TestStorageLuks(storagelib.StorageCase):
             self.content_tab_wait_in_info(1, 3, "Encryption type", "LUKS2")
 
         uuid = m.execute(f"cryptsetup luksUUID {dev}").strip()
-        cleartext_dev = "/dev/mapper/luks-" + uuid
-        passphrase_path = "/etc/luks-keys/luks-" + uuid
+        cleartext_dev = f"/dev/mapper/luks-{uuid}"
+        passphrase_path = f"/etc/luks-keys/luks-{uuid}"
 
         self.assert_in_configuration(dev, "crypttab", "options", "crypto,options")
         self.assert_not_in_configuration(dev, "crypttab", "options", "noauto")
@@ -294,8 +296,10 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
         mount_point_secret = "/run/secret"
 
         error_base = "Error unlocking /dev/sda: Failed to activate device: "
-        error_messages = [error_base + "Operation not permitted",
-                          error_base + "Incorrect passphrase."]
+        error_messages = [
+            f"{error_base}Operation not permitted",
+            f"{error_base}Incorrect passphrase.",
+        ]
 
         self.login_and_go("/storage")
 
@@ -319,13 +323,13 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
 
         dev = "/dev/sda"
         uuid = m.execute(f"cryptsetup luksUUID {dev}").strip()
-        cleartext_dev = "/dev/mapper/luks-" + uuid
+        cleartext_dev = f"/dev/mapper/luks-{uuid}"
 
         # add one more passphrase
         tab = self.content_tab_expand(1, 2)
-        panel = tab + " .pf-v5-c-card:contains(Keys) "
+        panel = f"{tab} .pf-v5-c-card:contains(Keys) "
         b.wait_visible(panel)
-        b.click(panel + "[aria-label='Add']")
+        b.click(f"{panel}[aria-label='Add']")
         self.dialog_wait_open()
         self.dialog_wait_apply_enabled()
         self.dialog_set_val("new_passphrase", "vainu-reku-toma-rolle-kaja-1")
@@ -351,7 +355,7 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
         self.assert_not_in_configuration(cleartext_dev, "fstab", "opts", "noauto")
         self.content_row_wait_in_col(1, 2, "ext4 filesystem")
         # delete second key slot
-        b.click(panel + "li:nth-child(2) button[aria-label='Remove']")
+        b.click(f"{panel}li:nth-child(2) button[aria-label='Remove']")
         # do not accept the same passphrase
         b.set_input_text("#remove-passphrase", "vainu-reku-toma-rolle-kaja-1")
         b.click("button:contains('Remove')")
@@ -377,7 +381,7 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
 
         # add more passphrases, seven exactly, to reach the limit of eight for LUKSv1
         for i in range(1, 8):
-            b.click(panel + "button[aria-label='Add']")
+            b.click(f"{panel}button[aria-label='Add']")
             self.dialog_wait_open()
             self.dialog_wait_apply_enabled()
             self.dialog_set_val("new_passphrase", f"vainu-reku-toma-rolle-kaja-{i}")
@@ -387,24 +391,24 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
             self.dialog_wait_close()
 
         # check if add button is inactive
-        b.wait_visible(panel + ".pf-v5-c-card__header button:disabled")
+        b.wait_visible(f"{panel}.pf-v5-c-card__header button:disabled")
         # check if edit button is inactive
-        slots_row = tab + " .pf-v5-c-card ul li:first-child"
-        b.wait_visible(slots_row + " button:disabled")
+        slots_row = f"{tab} .pf-v5-c-card ul li:first-child"
+        b.wait_visible(f"{slots_row} button:disabled")
 
         # remove one slot
-        slots_list = tab + " .pf-v5-c-card ul "
+        slots_list = f"{tab} .pf-v5-c-card ul "
         b.wait_visible(".pf-v5-c-data-list__cell:contains('Slot 7')")
-        b.click(slots_list + "li:last-child button[aria-label='Remove']")
+        b.click(f"{slots_list}li:last-child button[aria-label='Remove']")
         b.set_input_text("#remove-passphrase", "vainu-reku-toma-rolle-kaja-6")
         b.click("button:contains('Remove')")
         with b.wait_timeout(30):
             b.wait_not_present("#remove-passphrase")
         # check if buttons have become enabled after removing last slot
-        b.wait_not_present(slots_list + ":disabled")
-        b.wait_not_present(panel + ":disabled")
+        b.wait_not_present(f"{slots_list}:disabled")
+        b.wait_not_present(f"{panel}:disabled")
         # remove slot 0, with the original passphrase
-        b.click(slots_list + "li:nth-child(1) button[aria-label='Remove']")
+        b.click(f"{slots_list}li:nth-child(1) button[aria-label='Remove']")
         b.click("#force-remove-passphrase")
         b.click("button:contains('Remove')")
         with b.wait_timeout(30):
@@ -418,8 +422,8 @@ class TestStorageLuksDestructive(storagelib.StorageCase):
             self.assertIn(b.text("h4.pf-v5-c-alert__title:not(span)").split("Danger alert:", 1).pop(), error_messages)
             self.dialog_cancel()
             # change one of the passphrases
-            b.wait_visible(slots_list + "li:last-child [aria-label='Edit']")
-            b.click(slots_list + "li:last-child [aria-label='Edit']")
+            b.wait_visible(f"{slots_list}li:last-child [aria-label='Edit']")
+            b.click(f"{slots_list}li:last-child [aria-label='Edit']")
             self.dialog_wait_open()
             self.dialog_wait_apply_enabled()
             self.dialog_set_val("old_passphrase", "vainu-reku-toma-rolle-kaja-6")
@@ -511,13 +515,13 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
 
         self.content_tab_wait_in_info(1, 2, "Options", "nofail")
         tab = self.content_tab_expand(1, 2)
-        panel = tab + " .pf-v5-c-card:contains(Keys) "
+        panel = f"{tab} .pf-v5-c-card:contains(Keys) "
         b.wait_visible(panel)
-        b.wait_in_text(panel + "ul li:nth-child(1)", "Passphrase")
+        b.wait_in_text(f"{panel}ul li:nth-child(1)", "Passphrase")
 
         # Add a key
         #
-        b.click(panel + "[aria-label='Add']")
+        b.click(f"{panel}[aria-label='Add']")
         self.dialog_wait_open()
         self.dialog_wait_apply_enabled()
         self.dialog_set_val("type", "tang")
@@ -536,8 +540,8 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
             self.dialog_set_val("passphrase", "vainu-reku-toma-rolle-kaja")
             self.dialog_apply()
             self.dialog_wait_close()
-        b.wait_visible(panel + "ul li:nth-child(2)")
-        b.wait_in_text(panel + "ul li:nth-child(2)", "10.111.112.5")
+        b.wait_visible(f"{panel}ul li:nth-child(2)")
+        b.wait_in_text(f"{panel}ul li:nth-child(2)", "10.111.112.5")
 
         # Adding the key should add "_netdev" options
         #
@@ -555,7 +559,7 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
 
         # Edit the key, without providing an existing passphrase
         #
-        b.click(panel + "ul li:nth-child(2) [aria-label='Edit']")
+        b.click(f"{panel}ul li:nth-child(2) [aria-label='Edit']")
         self.dialog_wait_open()
         self.dialog_wait_apply_enabled()
         self.dialog_wait_val("tang_url", "10.111.112.5")
@@ -565,7 +569,7 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
         b.wait_in_text("#dialog", tang_m.execute("tang-show-keys").strip())
         self.dialog_apply()
         self.dialog_wait_close()
-        b.wait_in_text(panel + "ul li:nth-child(2)", "http://10.111.112.5/")
+        b.wait_in_text(f"{panel}ul li:nth-child(2)", "http://10.111.112.5/")
 
         # Reset the options so that we can check that they get added
         # also when a second key is added.
@@ -582,7 +586,7 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
         # Add a second key, this should try to fix things again, but
         # we have to help with the package install
         #
-        b.click(panel + "[aria-label='Add']")
+        b.click(f"{panel}[aria-label='Add']")
         self.dialog_wait_open()
         self.dialog_wait_apply_enabled()
         self.dialog_set_val("type", "tang")
@@ -609,7 +613,7 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
                 m.execute("if type dnf; then dnf install -y clevis-systemd; else apt-get install -y clevis-systemd; fi")
                 m.execute("systemctl disable --now clevis-luks-askpass.path")
 
-                b.click(panel + "[aria-label='Add']")
+                b.click(f"{panel}[aria-label='Add']")
                 self.dialog_wait_open()
                 self.dialog_wait_apply_enabled()
                 self.dialog_set_val("type", "tang")
@@ -621,8 +625,8 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
 
             self.dialog_wait_close()
 
-        b.wait_visible(panel + "ul li:nth-child(3)")
-        b.wait_in_text(panel + "ul li:nth-child(3)", "http://10.111.112.5")
+        b.wait_visible(f"{panel}ul li:nth-child(3)")
+        b.wait_in_text(f"{panel}ul li:nth-child(3)", "http://10.111.112.5")
 
         # This should bring the options back.
         #
@@ -642,10 +646,10 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
         # Remove one key on client
         #
         tab = self.content_tab_expand(1, 2)
-        panel = tab + " .pf-v5-c-card:contains(Keys) "
-        b.click(panel + 'ul li:contains("Slot 1") button[aria-label="Remove"]')
+        panel = f"{tab} .pf-v5-c-card:contains(Keys) "
+        b.click(f'{panel}ul li:contains("Slot 1") button[aria-label="Remove"]')
         self.confirm()
-        b.wait_not_present(panel + 'ul li:contains("Slot 1")')
+        b.wait_not_present(f'{panel}ul li:contains("Slot 1")')
 
     @testlib.skipImage("TODO: don't know how to encrypt the rootfs", "debian-*", "ubuntu-*", "arch")
     @testlib.timeout(1200)
@@ -681,12 +685,12 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
         b.click('.sidepanel-row:contains("Encrypted partition")')
 
         tab = self.content_tab_expand(2, 2)
-        panel = tab + " .pf-v5-c-card:contains(Keys) "
+        panel = f"{tab} .pf-v5-c-card:contains(Keys) "
         b.wait_visible(panel)
-        b.wait_in_text(panel + "ul li:nth-child(1)", "Passphrase")
+        b.wait_in_text(f"{panel}ul li:nth-child(1)", "Passphrase")
 
         with b.wait_timeout(360):
-            b.click(panel + "[aria-label='Add']")
+            b.click(f"{panel}[aria-label='Add']")
             self.dialog_wait_open()
             self.dialog_wait_apply_enabled()
             self.dialog_set_val("type", "tang")
@@ -702,10 +706,10 @@ class TestStorageNBDE(storagelib.StorageCase, packagelib.PackageCase):
             self.dialog_apply()
             self.dialog_wait_close()
 
-        b.click(panel + "ul li:nth-child(1) button[aria-label='Remove']")
+        b.click(f"{panel}ul li:nth-child(1) button[aria-label='Remove']")
         b.click("#force-remove-passphrase")
         b.click("button:contains('Remove')")
-        b.wait_in_text(panel + "ul li:nth-child(1)", "Keyserver")
+        b.wait_in_text(f"{panel}ul li:nth-child(1)", "Keyserver")
 
         # Tell the initrd to configure our special inter-machine
         # network that has the "tang" machine.

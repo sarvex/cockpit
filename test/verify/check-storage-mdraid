@@ -62,28 +62,29 @@ class TestStorageMdRaid(storagelib.StorageCase):
         self.browser.click(f'.pf-v5-c-card__header:contains("RAID device") button:contains({action})')
 
     def raid_default_action_finish(self, action):
-        if action == "Stop":
-            # Right after assembling an array the device might be busy
-            # from udev rules probing or the mdadm monitor; retry a
-            # few times.  Also, it might come back spontaneously after
-            # having been stopped successfully; wait a bit before
-            # checking whether it is really off.
-            for _ in range(3):
-                try:
-                    sleep(10)
-                    self.browser.wait_in_text(info_field("State"), "Not running")
-                    break
-                except testlib.Error as ex:
-                    if not ex.msg.startswith('timeout'):
-                        raise
-                    print("Stopping failed, retrying...")
-                    if self.browser.is_present("#dialog"):
-                        self.browser.wait_in_text("#dialog", "Error stopping RAID array")
-                        self.dialog_cancel()
-                        self.dialog_wait_close()
-                    self.raid_default_action_start(action)
-            else:
-                self.fail("Timed out waiting for array to get stopped")
+        if action != "Stop":
+            return
+        # Right after assembling an array the device might be busy
+        # from udev rules probing or the mdadm monitor; retry a
+        # few times.  Also, it might come back spontaneously after
+        # having been stopped successfully; wait a bit before
+        # checking whether it is really off.
+        for _ in range(3):
+            try:
+                sleep(10)
+                self.browser.wait_in_text(info_field("State"), "Not running")
+                break
+            except testlib.Error as ex:
+                if not ex.msg.startswith('timeout'):
+                    raise
+                print("Stopping failed, retrying...")
+                if self.browser.is_present("#dialog"):
+                    self.browser.wait_in_text("#dialog", "Error stopping RAID array")
+                    self.dialog_cancel()
+                    self.dialog_wait_close()
+                self.raid_default_action_start(action)
+        else:
+            self.fail("Timed out waiting for array to get stopped")
 
     def raid_default_action(self, action):
         self.raid_default_action_start(action)
@@ -190,7 +191,7 @@ class TestStorageMdRaid(storagelib.StorageCase):
             # Older storaged versions don't pick them up as the preferred
             # device, however, so we will see "/dev/md127p1", for example.
             # (https://github.com/storaged-project/storaged/issues/98)
-            part_prefix = dev + "p"
+            part_prefix = f"{dev}p"
 
         # Create Partition Table
         b.click('button:contains(Create partition table)')
@@ -205,7 +206,7 @@ class TestStorageMdRaid(storagelib.StorageCase):
                      "name": "One"},
                     secondary=True)
         self.content_row_wait_in_col(1, 2, "ext4 filesystem")
-        self.content_row_wait_in_col(1, 1, part_prefix + "1")
+        self.content_row_wait_in_col(1, 1, f"{part_prefix}1")
 
         # Create second partition
         self.content_row_action(2, "Create partition", isExpandable=False)
@@ -214,7 +215,7 @@ class TestStorageMdRaid(storagelib.StorageCase):
                      "name": "Two"})
 
         self.content_row_wait_in_col(2, 2, "ext4 filesystem")
-        self.content_row_wait_in_col(2, 1, part_prefix + "2")
+        self.content_row_wait_in_col(2, 1, f"{part_prefix}2")
         b.wait_not_in_text("#detail-content", "Free space")
 
         # Replace a disk by adding a spare and then removing a "In sync" disk

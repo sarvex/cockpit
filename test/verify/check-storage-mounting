@@ -124,7 +124,7 @@ ExecStart=/usr/bin/sleep infinity
         wait_ratio_in_range(bar_selector, 0.5, 1.0)
         m.execute(f"rm {mount_point_bar}/zero")
         wait_ratio_in_range(bar_selector, 0.0, 0.1)
-        b.click('table[aria-label="Filesystems"] tr:contains("%s")' % mount_point_bar)
+        b.click(f'table[aria-label="Filesystems"] tr:contains("{mount_point_bar}")')
         b.wait_visible("#storage-detail")
 
         def wait_info_field_value(name, value):
@@ -161,47 +161,55 @@ ExecStart=/usr/bin/sleep infinity
         # Unmount externally, remount with Cockpit
 
         m.execute("umount /run/foo")
-        b.click(fsys_tab + " button:contains(Mount now)")
-        b.wait_not_present(fsys_tab + " button:contains(Mount now)")
+        b.click(f"{fsys_tab} button:contains(Mount now)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Mount now)")
         self.wait_mounted(1, 1)
 
         # Unmount externally, adjust fstab with Cockpit
 
         m.execute("umount /run/foo")
-        b.click(fsys_tab + " button:contains(Do not mount automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Do not mount automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Do not mount automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Do not mount automatically on boot)"
+        )
 
         # Mount externally, unmount with Cockpit
 
         m.execute("mount /run/foo")
-        b.click(fsys_tab + " button:contains(Unmount now)")
-        b.wait_not_present(fsys_tab + " button:contains(Unmount now)")
+        b.click(f"{fsys_tab} button:contains(Unmount now)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Unmount now)")
 
         # Mount externally, adjust fstab with Cockpit
 
         m.execute("mount /run/foo")
-        b.click(fsys_tab + " button:contains(Mount also automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Mount also automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Mount also automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Mount also automatically on boot)"
+        )
 
         # Move mount point externally, move back with Cockpit
 
         m.execute("umount /run/foo")
         m.execute(f"mkdir -p /run/bar; mount {disk} /run/bar")
-        b.click(fsys_tab + " button:contains(Mount on /run/foo now)")
-        b.wait_not_present(fsys_tab + " button:contains(Mount on /run/foo now)")
+        b.click(f"{fsys_tab} button:contains(Mount on /run/foo now)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Mount on /run/foo now)")
 
         # Move mount point externally, adjust fstab with Cockpit
 
         m.execute("umount /run/foo")
         m.execute(f"mkdir -p /run/bar; mount {disk} /run/bar")
-        b.click(fsys_tab + " button:contains(Mount automatically on /run/bar on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Mount automatically on /run/bar on boot)")
+        b.click(f"{fsys_tab} button:contains(Mount automatically on /run/bar on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Mount automatically on /run/bar on boot)"
+        )
 
         # Using noauto,x-systemd.automount should not show a warning
         m.execute("sed -i -e 's/auto nofail/auto nofail,noauto/' /etc/fstab")
-        b.wait_visible(fsys_tab + " button:contains(Mount also automatically on boot)")
+        b.wait_visible(f"{fsys_tab} button:contains(Mount also automatically on boot)")
         m.execute("sed -i -e 's/noauto/noauto,x-systemd.automount/' /etc/fstab")
-        b.wait_not_present(fsys_tab + " button:contains(Mount also automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Mount also automatically on boot)"
+        )
 
     def testFstabOptions(self):
         m = self.machine
@@ -381,9 +389,9 @@ class TestStorageMountingLUKS(storagelib.StorageCase):
         # wait until the UI updated to the locking
         self.content_tab_wait_in_info(1, 2, "Cleartext device", "-")
         fsys_tab = self.content_tab_expand(1, 1)
-        b.click(fsys_tab + " button:contains(Mount now)")
+        b.click(f"{fsys_tab} button:contains(Mount now)")
         self.dialog({"passphrase": "vainu-reku-toma-rolle-kaja"})
-        b.wait_not_present(fsys_tab + " button:contains(Mount now)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Mount now)")
         self.wait_mounted(1, 1)
 
         # Unmount and lock externally, adjust fstab with Cockpit
@@ -393,34 +401,40 @@ class TestStorageMountingLUKS(storagelib.StorageCase):
         # wait until the UI updated to the locking
         self.content_tab_wait_in_info(1, 2, "Cleartext device", "-")
         fsys_tab = self.content_tab_expand(1, 1)
-        b.click(fsys_tab + " button:contains(Do not mount automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Do not mount automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Do not mount automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Do not mount automatically on boot)"
+        )
 
         # Unlock and mount externally, unmount and lock with Cockpit
 
         m.execute(f"echo -n vainu-reku-toma-rolle-kaja | udisksctl unlock --key-file /dev/stdin -b {disk}")
         m.execute("mount /run/foo")
-        b.click(fsys_tab + " button:contains(Unmount now)")
-        b.wait_not_present(fsys_tab + " button:contains(Unmount now)")
+        b.click(f"{fsys_tab} button:contains(Unmount now)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Unmount now)")
 
         # Unlock and mount externally, adjust fstab with Cockpit
 
         m.execute(f"echo -n vainu-reku-toma-rolle-kaja | udisksctl unlock --key-file /dev/stdin -b {disk}")
         m.execute("mount /run/foo")
-        b.click(fsys_tab + " button:contains(Mount also automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Mount also automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Mount also automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Mount also automatically on boot)"
+        )
 
         # Add noauto to crypttab (but not fstab), remove with Cockpit
 
         m.execute("sed -i -e 's/xxx/xxx,noauto/' /etc/crypttab")
-        b.click(fsys_tab + " button:contains(Unlock automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Unlock automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Unlock automatically on boot)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Unlock automatically on boot)")
 
         # Add noauto to crypttab (but not fstab), add also to fstab with Cockpit
 
         m.execute("sed -i -e 's/xxx/xxx,noauto/' /etc/crypttab")
-        b.click(fsys_tab + " button:contains(Do not mount automatically on boot)")
-        b.wait_not_present(fsys_tab + " button:contains(Do not mount automatically on boot)")
+        b.click(f"{fsys_tab} button:contains(Do not mount automatically on boot)")
+        b.wait_not_present(
+            f"{fsys_tab} button:contains(Do not mount automatically on boot)"
+        )
 
     def testDuplicateMountPoints(self):
         m = self.machine
@@ -529,8 +543,8 @@ class TestStorageMountingLUKS(storagelib.StorageCase):
         m.execute("sed -i -e 's/noauto//' /etc/fstab")
         fsys_tab = self.content_tab_expand(1, 1)
         b.wait_in_text(fsys_tab, "The filesystem is configured to be automatically mounted on boot but its encryption container will not be unlocked at that time.")
-        b.click(fsys_tab + " button:contains(Do not mount automatically)")
-        b.wait_not_present(fsys_tab + " button:contains(Do not mount automatically)")
+        b.click(f"{fsys_tab} button:contains(Do not mount automatically)")
+        b.wait_not_present(f"{fsys_tab} button:contains(Do not mount automatically)")
 
     def testOverMounting(self):
         m = self.machine
@@ -606,7 +620,7 @@ class TestStorageMountingLUKS(storagelib.StorageCase):
         self.dialog_wait_close()
 
         # Now /run/foo/bar should be noauto.
-        self.assert_in_configuration(disk + "2", "crypttab", "options", "noauto")
+        self.assert_in_configuration(f"{disk}2", "crypttab", "options", "noauto")
         self.assertIn("noauto", m.execute("findmnt --fstab -n -o OPTIONS /run/foo/bar"))
 
         # Mount them again and check that initializing the disk will

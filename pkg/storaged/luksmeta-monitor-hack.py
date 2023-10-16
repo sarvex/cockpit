@@ -93,8 +93,7 @@ def info(dev):
                 slots[slot] = entry
 
         if in_luks2_token_section:
-            match = re.match(b"  ([0-9]+): clevis$", line)
-            if match:
+            if match := re.match(b"  ([0-9]+): clevis$", line):
                 try:
                     token = subprocess.check_output(["cryptsetup", "token", "export", dev, "--token-id", match.group(1)],
                                                     stderr=subprocess.PIPE)

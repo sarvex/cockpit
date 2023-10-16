@@ -68,7 +68,7 @@ class TestStorageFormat(storagelib.StorageCase):
             self.dialog_set_val("name", "X" * label_limit)
             self.dialog_apply_secondary()
             self.dialog_wait_close()
-            self.content_row_wait_in_col(1, 2, fstype + " filesystem")
+            self.content_row_wait_in_col(1, 2, f"{fstype} filesystem")
 
         def check_unsupported_type(fstype):
             self.content_dropdown_action(1, "Format")

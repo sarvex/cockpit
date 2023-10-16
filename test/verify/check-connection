@@ -778,14 +778,16 @@ class TestConnection(testlib.MachineCase):
         self.assertLess(length, 100000)
 
         # login handler: wrong password
-        headers = m.execute("curl -s --head --header 'Authorization: Basic {}' http://172.27.0.15:9090/cockpit/login".format(
-            base64.b64encode(b"admin:hahawrong").decode()))
+        headers = m.execute(
+            f"""curl -s --head --header 'Authorization: Basic {base64.b64encode(b"admin:hahawrong").decode()}' http://172.27.0.15:9090/cockpit/login"""
+        )
         self.assertRegex(headers, r"HTTP/1.1 (401 Authentication failed|403 Permission denied)\r\n")
         self.assertNotIn("Set-Cookie:", headers)
 
         # login handler: correct password
-        headers = m.execute("curl -s --head --header 'Authorization: Basic {}' http://172.27.0.15:9090/cockpit/login".format(
-            base64.b64encode(b"admin:foobar").decode()))
+        headers = m.execute(
+            f"""curl -s --head --header 'Authorization: Basic {base64.b64encode(b"admin:foobar").decode()}' http://172.27.0.15:9090/cockpit/login"""
+        )
         self.assertIn("HTTP/1.1 200 OK\r\n", headers)
         self.assertIn("Set-Cookie: cockpit", headers)
 

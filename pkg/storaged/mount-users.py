@@ -30,10 +30,16 @@ def fuser(mount_point):
         # Field two is everything between the first "(" and the last ")", the rest is space separated.
         comm_start = stat.index("(") + 1
         comm_end = stat.rindex(")")
-        return ([stat[0:comm_start - 1].strip(), stat[comm_start:comm_end], *list(filter(lambda f: f != '', stat[comm_end + 1:-1].split(' ')))])
+        return [
+            stat[: comm_start - 1].strip(),
+            stat[comm_start:comm_end],
+            *list(
+                filter(lambda f: f != '', stat[comm_end + 1 : -1].split(' '))
+            ),
+        ]
 
     def get_loginuser(pid):
-        uid = os.stat("/proc/%s" % pid).st_uid
+        uid = os.stat(f"/proc/{pid}").st_uid
         try:
             return pwd.getpwuid(uid).pw_name
         except OSError:
@@ -41,7 +47,7 @@ def fuser(mount_point):
 
     def check(path, pid):
         t = os.readlink(path)
-        if t == mount_point or t.startswith(mount_point + "/"):
+        if t == mount_point or t.startswith(f"{mount_point}/"):
             unit = systemd_manager.GetUnitByPID(int(pid))
             if unit not in results:
                 unit_obj = bus.get_object('org.freedesktop.systemd1', unit)
@@ -81,17 +87,17 @@ def fuser(mount_point):
             continue
         if int(p) == my_pid:
             continue
-        proc = "/proc/%s/" % p
+        proc = f"/proc/{p}/"
         try:
-            if check(proc + "exe", p):
+            if check(f"{proc}exe", p):
                 continue
-            if check(proc + "root", p):
+            if check(f"{proc}root", p):
                 continue
-            if check(proc + "cwd", p):
+            if check(f"{proc}cwd", p):
                 continue
-            if checkdir(proc + "fd", p):
+            if checkdir(f"{proc}fd", p):
                 continue
-            if checkdir(proc + "map_files", p):
+            if checkdir(f"{proc}map_files", p):
                 continue
         except OSError:
             pass

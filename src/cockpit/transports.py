@@ -158,9 +158,7 @@ class _Transport(asyncio.Transport):
             logger.debug('%s got EOF.  bytes in queue, deferring close', self)
 
     def get_write_buffer_size(self) -> int:
-        if self._queue is None:
-            return 0
-        return sum(len(block) for block in self._queue)
+        return 0 if self._queue is None else sum(len(block) for block in self._queue)
 
     def get_write_buffer_limits(self) -> Tuple[int, int]:
         return (0, 0)

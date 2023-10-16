@@ -101,7 +101,6 @@ class Test:
             self._print_test(print_tap, skip_reason=skip_reason)
             return None, 0
 
-        # If the test was marked with @todo then...
         if self.todo is not None:
             if self.returncode == 0:
                 # The test passed, but it shouldn't have.
@@ -125,7 +124,9 @@ class Test:
             cmd.append(testvm.DEFAULT_IMAGE)
             try:
                 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-                reason = proc.communicate(self.output + ("not ok " + str(self)).encode())[0].strip()
+                reason = proc.communicate(
+                    self.output + f"not ok {str(self)}".encode()
+                )[0].strip()
 
                 if proc.returncode == 77:
                     self.returncode = proc.returncode
@@ -150,7 +151,12 @@ class Test:
 
         has_unexpected_message = testlib.UNEXPECTED_MESSAGE.encode() in self.output
         has_pixel_test_message = testlib.PIXEL_TEST_MESSAGE.encode() in self.output
-        if self.retries < 2 and not (has_unexpected_message or has_pixel_test_message) and retry_reason:
+        if (
+            self.retries < 2
+            and not has_unexpected_message
+            and not has_pixel_test_message
+            and retry_reason
+        ):
             self.retries += 1
             self._print_test(retry_reason=f"# RETRY {self.retries} ({retry_reason})")
             return retry_reason, 0
@@ -189,11 +195,11 @@ class Test:
                 write_line(line)
 
         if retry_reason:
-            retry_reason = " " + retry_reason
+            retry_reason = f" {retry_reason}"
         if skip_reason:
-            skip_reason = " " + skip_reason
+            skip_reason = f" {skip_reason}"
         if todo_reason:
-            todo_reason = " " + todo_reason
+            todo_reason = f" {todo_reason}"
 
         if not print_tap:
             print(retry_reason + skip_reason + todo_reason)
@@ -248,9 +254,7 @@ class GlobalMachine:
 def check_valid(filename):
     name = os.path.basename(filename)
     allowed = string.ascii_letters + string.digits + '-_'
-    if not all(c in allowed for c in name):
-        return None
-    return name.replace("-", "_")
+    return None if any(c not in allowed for c in name) else name.replace("-", "_")
 
 
 def build_command(filename, test, opts):
@@ -276,7 +280,9 @@ def get_affected_tests(test_dir, base_branch, test_files):
     changed_tests = []
 
     # Detect affected tests from changed test files
-    diff_out = subprocess.check_output(["git", "diff", "--name-only", "origin/" + base_branch, test_dir])
+    diff_out = subprocess.check_output(
+        ["git", "diff", "--name-only", f"origin/{base_branch}", test_dir]
+    )
     # Never consider 'test/verify/check-example' to be affected - our tests for tests count on that
     # This file provides only examples, there is no place for it being flaky, no need to retry
     changed_tests = [test.decode("utf-8") for test in diff_out.strip().splitlines() if not test.endswith(b"check-example")]
@@ -294,7 +300,9 @@ def get_affected_tests(test_dir, base_branch, test_files):
     # If affected tests get detected from pkg/* changes, don't apply the
     # "only do this for max. 3 check-* changes" (even if the PR also changes ≥ 3 check-*)
     # (this does not apply to other projects)
-    diff_out = subprocess.check_output(["git", "diff", "--name-only", "origin/" + base_branch, "--", "pkg/"])
+    diff_out = subprocess.check_output(
+        ["git", "diff", "--name-only", f"origin/{base_branch}", "--", "pkg/"]
+    )
 
     # Drop changes in css files - this does not affect tests thus no reason to retry
     files = [f.decode("utf-8") for f in diff_out.strip().splitlines() if not f.endswith(b"css")]
@@ -336,7 +344,9 @@ def detect_tests(test_files, image, opts):
                 # ensure that test classes are unique, so that they can be selected properly
                 cls = test.__class__.__name__
                 if seen_classes.get(cls) not in [None, filename]:
-                    raise ValueError("test class %s in %s already defined in %s" % (cls, filename, seen_classes[cls]))
+                    raise ValueError(
+                        f"test class {cls} in {filename} already defined in {seen_classes[cls]}"
+                    )
                 seen_classes[cls] = filename
 
                 test_method = getattr(test.__class__, test._testMethodName)
@@ -344,7 +354,7 @@ def detect_tests(test_files, image, opts):
                 # most tests should take much less than 10mins, so default to that;
                 # longer tests can be annotated with @timeout(seconds)
                 # check the test function first, fall back to the class'es timeout
-                if opts.tests and not any(t in test_str for t in opts.tests):
+                if opts.tests and all(t not in test_str for t in opts.tests):
                     continue
                 if test_str in opts.exclude:
                     continue
@@ -360,9 +370,8 @@ def detect_tests(test_files, image, opts):
                 test = Test(test_id, build_command(filename, test_str, opts), test_timeout, nd, rwa, todo, cost=cost)
                 if nd:
                     nondestructive_tests.append(test)
-                else:
-                    if not opts.nondestructive:
-                        destructive_tests.append(test)
+                elif not opts.nondestructive:
+                    destructive_tests.append(test)
                 test_id += 1
 
     # sort non destructive tests by class/test name, to avoid spurious errors where failures depend on the order of
@@ -478,7 +487,10 @@ def run(opts, image):
             return sum(test.cost for test in running_tests)
 
         # fill the remaining available job slots with destructive tests; run tests with a cost higher than #jobs by themselves
-        while destructive_tests and (running_cost() + destructive_tests[0].cost <= opts.jobs or len(running_tests) == 0):
+        while destructive_tests and (
+            running_cost() + destructive_tests[0].cost <= opts.jobs
+            or not running_tests
+        ):
             test = destructive_tests.pop(0)
             logging.debug("%d running tests with total cost %d, starting next destructive test %s",
                           len(running_tests), running_cost(), test)

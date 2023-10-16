@@ -144,10 +144,10 @@ class InternalMetricsChannel(AsyncChannel):
                     self.need_meta = True
 
                 if metricinfo.derive == 'rate':
-                    instances: List[Optional[Union[float, bool]]] = []
-                    for key, val in value.items():
-                        instances.append(self.calculate_sample_rate(val, old_value.get(key)))
-
+                    instances: List[Optional[Union[float, bool]]] = [
+                        self.calculate_sample_rate(val, old_value.get(key))
+                        for key, val in value.items()
+                    ]
                     data.append(instances)
                 else:
                     data.append(list(value.values()))
